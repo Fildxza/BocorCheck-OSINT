@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -238,14 +238,21 @@
 <body>
 <div class="shell">
     <section class="hero">
-        <h1 class="h3">Automated OSINT Dashboard</h1>
-        <p>Personal Data Breach Discovery using HIBP API v3</p>
-        <div class="mt-3 d-flex flex-wrap gap-2">
+        <h1 class="h3">{{ t('dashboard_title') }}</h1>
+        <p>{{ t('dashboard_subtitle') }}</p>
+        <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+            <form method="get" class="d-flex align-items-center gap-2 me-2">
+                <label class="small fw-semibold text-white-50" for="lang">{{ t('language') }}</label>
+                <select id="lang" name="lang" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="en" {% if current_lang == 'en' %}selected{% endif %}>{{ t('english') }}</option>
+                    <option value="ms" {% if current_lang == 'ms' %}selected{% endif %}>{{ t('malay') }}</option>
+                </select>
+            </form>
             {% if is_admin %}
-            <a class="btn btn-sm btn-light" href="{{ url_for('history') }}">View History</a>
-            <a class="btn btn-sm btn-outline-light" href="{{ url_for('admin_logout') }}">Admin Logout</a>
+            <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
+            <a class="btn btn-sm btn-outline-light" href="{{ url_for('admin_logout', lang=current_lang) }}">{{ t('admin_logout') }}</a>
             {% else %}
-            <a class="btn btn-sm btn-light" href="{{ url_for('admin_login') }}">Admin Login</a>
+            <a class="btn btn-sm btn-light" href="{{ url_for('admin_login', lang=current_lang) }}">{{ t('admin_login') }}</a>
             {% endif %}
         </div>
     </section>
@@ -254,7 +261,8 @@
         <div class="panel-body">
             {% if mock_mode %}
             <div class="mock-banner">
-                <strong>Mock Data Mode Active.</strong> Anda boleh demo tanpa API key.
+                <strong>{{ t('mock_mode_active') }}</strong>
+                <span class="text-danger fw-semibold">{{ t('mock_mode_notice') }}</span>
                 <div class="mt-2">
                     {% for sample_email in mock_emails %}
                     <span class="sample-chip">{{ sample_email }}</span>
@@ -270,8 +278,9 @@
             {% endif %}
 
             <form method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="lang" value="{{ current_lang }}">
                 <div class="col-md-4">
-                    <label for="email" class="form-label">Email Address</label>
+                    <label for="email" class="form-label">{{ t('email_address') }}</label>
                     <input
                         type="email"
                         class="form-control"
@@ -282,7 +291,7 @@
                     >
                 </div>
                 <div class="col-md-3">
-                    <label for="phone_number" class="form-label">Phone Number</label>
+                    <label for="phone_number" class="form-label">{{ t('phone_number') }}</label>
                     <input
                         type="text"
                         class="form-control"
@@ -293,7 +302,7 @@
                     >
                 </div>
                 <div class="col-md-3">
-                    <label for="bank_account" class="form-label">Bank Account (Demo)</label>
+                    <label for="bank_account" class="form-label">{{ t('bank_account_demo') }}</label>
                     <input
                         type="text"
                         class="form-control"
@@ -304,27 +313,27 @@
                     >
                 </div>
                 <div class="col-md-2 d-grid gap-2">
-                    <button type="submit" name="submit_action" value="analyze" class="btn btn-main">Analyze</button>
-                    <button type="submit" name="submit_action" value="telegram_test" class="btn btn-outline-primary">Send Telegram Test</button>
+                    <button type="submit" name="submit_action" value="analyze" class="btn btn-main">{{ t('analyze') }}</button>
+                    <button type="submit" name="submit_action" value="telegram_test" class="btn btn-outline-primary">{{ t('send_telegram_test') }}</button>
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label d-block mb-2">Data Source Mode</label>
+                    <label class="form-label d-block mb-2">{{ t('data_source_mode') }}</label>
                     <div class="d-flex flex-wrap gap-3">
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="api_mode" id="mode_auto" value="auto" {% if api_mode == 'auto' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_auto">Auto</label>
+                            <label class="form-check-label" for="mode_auto">{{ t('auto') }}</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="api_mode" id="mode_mock" value="mock" {% if api_mode == 'mock' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_mock">Mock</label>
+                            <label class="form-check-label" for="mode_mock">{{ t('mock') }}</label>
                         </div>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="api_mode" id="mode_live" value="live" {% if api_mode == 'live' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_live">Live (HIBP API)</label>
+                            <label class="form-check-label" for="mode_live">{{ t('live_hibp') }}</label>
                         </div>
                     </div>
-                    <div class="small text-muted mt-2">Current effective mode: <strong>{{ effective_data_mode }}</strong></div>
+                    <div class="small text-muted mt-2">{{ t('effective_mode') }} <strong>{{ effective_data_mode }}</strong></div>
                 </div>
             </form>
 
@@ -354,41 +363,41 @@
 
             {% if not is_telegram_configured and not telegram_status %}
             <div class="status-box status-error">
-                Telegram test not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in environment variables.
+                {{ t('telegram_not_configured') }}
             </div>
             {% endif %}
 
             {% if email or phone_number or bank_account %}
             <div class="section-card">
-                <h2 class="h5 mb-3">Investigation Summary</h2>
+                <h2 class="h5 mb-3">{{ t('investigation_summary') }}</h2>
                 <div class="row g-3">
                     <div class="col-md-6 col-lg-3">
                         <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">Email Checked</div>
+                            <div class="text-muted small">{{ t('email_checked') }}</div>
                             <div class="fw-semibold mt-1">{{ email if email else '-' }}</div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-3">
                         <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">Phone Number Checked</div>
+                            <div class="text-muted small">{{ t('phone_checked') }}</div>
                             <div class="fw-semibold mt-1">{{ phone_number if phone_number else '-' }}</div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-3">
                         <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">Bank Account Checked (Demo)</div>
+                            <div class="text-muted small">{{ t('bank_checked') }}</div>
                             <div class="fw-semibold mt-1">{{ bank_account if bank_account else '-' }}</div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-3">
                         <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">Total Breaches Found</div>
+                            <div class="text-muted small">{{ t('total_breaches') }}</div>
                             <div class="fw-semibold mt-1">{{ total_breaches }}</div>
                         </div>
                     </div>
                     <div class="col-md-6 col-lg-3">
                         <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">Risk Level</div>
+                            <div class="text-muted small">{{ t('risk_level') }}</div>
                             <div class="fw-semibold mt-1">{{ risk_level if risk_level else 'LOW' }}</div>
                         </div>
                     </div>
@@ -396,8 +405,8 @@
 
                 <div class="mt-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h3 class="h6 mb-0">Risk Score</h3>
-                        <span class="fw-semibold">Score: {{ risk_score }} / 100</span>
+                        <h3 class="h6 mb-0">{{ t('risk_score') }}</h3>
+                        <span class="fw-semibold">{{ t('score_of', score=risk_score) }}</span>
                     </div>
 
                     {% set progress_class = 'bg-success' %}
@@ -414,19 +423,19 @@
 
                 {% if phone_analysis and phone_number %}
                 <div class="mt-4">
-                    <h3 class="h6 mb-2">Phone Number OSINT Check</h3>
+                    <h3 class="h6 mb-2">{{ t('phone_osint_check') }}</h3>
                     <div class="row g-3">
                         <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">Valid Format: <strong>{{ 'Yes' if phone_analysis.is_valid else 'No' }}</strong></div>
+                            <div class="p-2 border rounded-2 small">{{ t('valid_format') }}: <strong>{{ t('yes') if phone_analysis.is_valid else t('no') }}</strong></div>
                         </div>
                         <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">Country Code: <strong>{{ phone_analysis.country_code if phone_analysis.country_code else '-' }}</strong></div>
+                            <div class="p-2 border rounded-2 small">{{ t('country_code') }}: <strong>{{ phone_analysis.country_code if phone_analysis.country_code else '-' }}</strong></div>
                         </div>
                         <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">Region: <strong>{{ phone_analysis.region if phone_analysis.region else '-' }}</strong></div>
+                            <div class="p-2 border rounded-2 small">{{ t('region') }}: <strong>{{ phone_analysis.region if phone_analysis.region else '-' }}</strong></div>
                         </div>
                         <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">Phone Exposed: <strong>{{ 'Yes' if phone_exposed else 'No' }}</strong></div>
+                            <div class="p-2 border rounded-2 small">{{ t('phone_exposed') }}: <strong>{{ t('yes') if phone_exposed else t('no') }}</strong></div>
                         </div>
                     </div>
                 </div>
@@ -436,20 +445,20 @@
 
             {% if bank_account %}
             <div class="section-card">
-                <h2 class="h5 mb-3">Bank Exposure Demo (Malaysia Context)</h2>
+                <h2 class="h5 mb-3">{{ t('bank_exposure_demo') }}</h2>
                 {% if bank_analysis and bank_analysis.is_valid %}
                 <div class="row g-3">
                     <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">Format Valid: <strong>Yes</strong></div>
+                        <div class="p-2 border rounded-2 small">{{ t('format_valid') }}: <strong>{{ t('yes') }}</strong></div>
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">Masked Account: <strong>****{{ bank_analysis.last4 }}</strong></div>
+                        <div class="p-2 border rounded-2 small">{{ t('masked_account') }}: <strong>****{{ bank_analysis.last4 }}</strong></div>
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">Exposure Status: <strong>{{ 'Exposed (Mock)' if bank_analysis.is_exposed else 'No Exposure (Mock)' }}</strong></div>
+                        <div class="p-2 border rounded-2 small">{{ t('exposure_status') }}: <strong>{{ t('exposed_mock') if bank_analysis.is_exposed else t('no_exposure_mock') }}</strong></div>
                     </div>
                     <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">Data Source: <strong>{{ bank_analysis.source if bank_analysis.source else 'Mock Dataset' }}</strong></div>
+                        <div class="p-2 border rounded-2 small">{{ t('data_source') }}: <strong>{{ bank_analysis.source if bank_analysis.source else t('mock_dataset') }}</strong></div>
                     </div>
                 </div>
                 {% if bank_analysis.note %}
@@ -460,7 +469,7 @@
                 </div>
                 {% else %}
                 <div class="status-box status-error mt-0">
-                    Bank account format invalid. Please enter 10 to 16 digits.
+                    {{ t('bank_invalid') }}
                 </div>
                 {% endif %}
             </div>
@@ -469,13 +478,13 @@
             {% if has_breach %}
             <div class="section-card">
                 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                    <h2 class="h5 mb-0">Breach Incidents Found</h2>
+                    <h2 class="h5 mb-0">{{ t('breach_incidents') }}</h2>
                     {% if risk_level == 'HIGH' %}
-                        <span class="risk-pill risk-high">Overall Risk: High</span>
+                        <span class="risk-pill risk-high">{{ t('overall_risk', level='High') }}</span>
                     {% elif risk_level == 'MEDIUM' %}
-                        <span class="risk-pill risk-medium">Overall Risk: Medium</span>
+                        <span class="risk-pill risk-medium">{{ t('overall_risk', level='Medium') }}</span>
                     {% else %}
-                        <span class="risk-pill risk-low">Overall Risk: Low</span>
+                        <span class="risk-pill risk-low">{{ t('overall_risk', level='Low') }}</span>
                     {% endif %}
                 </div>
 
@@ -483,10 +492,10 @@
                     <table class="table align-middle">
                         <thead>
                         <tr>
-                            <th>Company / Breach</th>
-                            <th>Date</th>
-                            <th>Data Classes Leaked</th>
-                            <th>Risk</th>
+                            <th>{{ t('company_breach') }}</th>
+                            <th>{{ t('date') }}</th>
+                            <th>{{ t('data_classes') }}</th>
+                            <th>{{ t('risk') }}</th>
                         </tr>
                         </thead>
                         <tbody>
@@ -514,7 +523,7 @@
 
             {% if tips %}
             <div class="section-card">
-                <h2 class="h5 mb-3">Recommended Mitigation Plan</h2>
+                <h2 class="h5 mb-3">{{ t('recommended_mitigation') }}</h2>
                 <ul class="tips-list">
                     {% for tip in tips %}
                     <li>{{ tip }}</li>

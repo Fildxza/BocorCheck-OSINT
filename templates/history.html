@@ -1,50 +1,51 @@
 <!doctype html>
-<html lang="en">
+<html lang="{{ current_lang }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Investigation History</title>
+    <title>{{ t('history_title') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="h4 mb-1">Investigation History</h1>
-            <p class="text-muted mb-0">Filter by date and risk level, then export as CSV.</p>
+            <h1 class="h4 mb-1">{{ t('history_title') }}</h1>
+            <p class="text-muted mb-0">{{ t('history_subtitle') }}</p>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">Dashboard</a>
-            <a class="btn btn-outline-danger" href="{{ url_for('admin_logout') }}">Logout</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('index', lang=current_lang) }}">{{ t('dashboard') }}</a>
+            <a class="btn btn-outline-danger" href="{{ url_for('admin_logout', lang=current_lang) }}">{{ t('logout') }}</a>
         </div>
     </div>
 
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-body">
             <form method="get" action="{{ url_for('history') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="lang" value="{{ current_lang }}">
                 <div class="col-md-3">
-                    <label for="start_date" class="form-label">Start Date</label>
+                    <label for="start_date" class="form-label">{{ t('start_date') }}</label>
                     <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
                 </div>
                 <div class="col-md-3">
-                    <label for="end_date" class="form-label">End Date</label>
+                    <label for="end_date" class="form-label">{{ t('end_date') }}</label>
                     <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
                 </div>
                 <div class="col-md-3">
-                    <label for="risk_level" class="form-label">Risk Level</label>
+                    <label for="risk_level" class="form-label">{{ t('risk_level') }}</label>
                     <select id="risk_level" name="risk_level" class="form-select">
-                        <option value="" {% if not risk_level %}selected{% endif %}>All</option>
+                        <option value="" {% if not risk_level %}selected{% endif %}>{{ t('all') }}</option>
                         <option value="LOW" {% if risk_level == 'LOW' %}selected{% endif %}>LOW</option>
                         <option value="MEDIUM" {% if risk_level == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
                         <option value="HIGH" {% if risk_level == 'HIGH' %}selected{% endif %}>HIGH</option>
                     </select>
                 </div>
                 <div class="col-md-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
+                    <button type="submit" class="btn btn-primary w-100">{{ t('apply_filter') }}</button>
                     <a
                         class="btn btn-success w-100"
-                        href="{{ url_for('export_history_csv', start_date=start_date, end_date=end_date, risk_level=risk_level) }}"
-                    >Export CSV</a>
+                        href="{{ url_for('export_history_csv', start_date=start_date, end_date=end_date, risk_level=risk_level, lang=current_lang) }}"
+                    >{{ t('export_csv') }}</a>
                 </div>
             </form>
         </div>
@@ -60,12 +61,12 @@
                 <thead class="table-light">
                     <tr>
                         <th>ID</th>
-                        <th>Email</th>
-                        <th>Phone Number</th>
-                        <th>Breaches</th>
-                        <th>Risk Score</th>
-                        <th>Risk Level</th>
-                        <th>Checked At</th>
+                        <th>{{ t('email') }}</th>
+                        <th>{{ t('phone_number') }}</th>
+                        <th>{{ t('breaches') }}</th>
+                        <th>{{ t('risk_score') }}</th>
+                        <th>{{ t('risk_level') }}</th>
+                        <th>{{ t('checked_at') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -83,7 +84,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">No investigation logs found.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">{{ t('no_logs_found') }}</td>
                     </tr>
                 {% endif %}
                 </tbody>

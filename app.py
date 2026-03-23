@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 
 import phonenumbers
 import requests
-from flask import Flask, render_template, request, redirect, url_for, session, Response
+from flask import Flask, render_template, request, redirect, url_for, session, Response, g
 from mysql.connector import Error as MySQLError
 from mysql.connector import connect
 
@@ -23,6 +23,198 @@ PHONE_DEFAULT_REGION = os.getenv("PHONE_DEFAULT_REGION", "MY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
 
+SUPPORTED_LANGUAGES = ("en", "ms")
+DEFAULT_LANGUAGE = "en"
+
+TRANSLATIONS: Dict[str, Dict[str, str]] = {
+    "en": {
+        "dashboard_title": "BocorCheck Dashboard",
+        "dashboard_subtitle": "Personal Data Breach Discovery using HIBP API v3",
+        "view_history": "View History",
+        "admin_logout": "Admin Logout",
+        "admin_login": "Admin Login",
+        "mock_mode_active": "Mock Data Mode Active.",
+        "mock_mode_notice": "This is only an FYP demo attempt without API.",
+        "language": "Language",
+        "english": "English",
+        "malay": "Malay",
+        "email_address": "Email Address",
+        "phone_number": "Phone Number",
+        "bank_account_demo": "Bank Account (Demo)",
+        "analyze": "Analyze",
+        "send_telegram_test": "Send Telegram Test",
+        "data_source_mode": "Data Source Mode",
+        "auto": "Auto",
+        "mock": "Mock",
+        "live_hibp": "Live (HIBP API)",
+        "effective_mode": "Current effective mode:",
+        "telegram_not_configured": "Telegram test not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in environment variables.",
+        "investigation_summary": "Investigation Summary",
+        "email_checked": "Email Checked",
+        "phone_checked": "Phone Number Checked",
+        "bank_checked": "Bank Account Checked (Demo)",
+        "total_breaches": "Total Breaches Found",
+        "risk_level": "Risk Level",
+        "risk_score": "Risk Score",
+        "score_of": "Score: {score} / 100",
+        "phone_osint_check": "Phone Number OSINT Check",
+        "valid_format": "Valid Format",
+        "country_code": "Country Code",
+        "region": "Region",
+        "phone_exposed": "Phone Exposed",
+        "yes": "Yes",
+        "no": "No",
+        "bank_exposure_demo": "Bank Exposure Demo (Malaysia Context)",
+        "format_valid": "Format Valid",
+        "masked_account": "Masked Account",
+        "exposure_status": "Exposure Status",
+        "exposed_mock": "Exposed (Mock)",
+        "no_exposure_mock": "No Exposure (Mock)",
+        "data_source": "Data Source",
+        "mock_dataset": "Mock Dataset",
+        "bank_invalid": "Bank account format invalid. Please enter 10 to 16 digits.",
+        "breach_incidents": "Breach Incidents Found",
+        "overall_risk": "Overall Risk: {level}",
+        "company_breach": "Company / Breach",
+        "date": "Date",
+        "data_classes": "Data Classes Leaked",
+        "risk": "Risk",
+        "recommended_mitigation": "Recommended Mitigation Plan",
+        "login_title": "Admin Login",
+        "login_subtitle": "Sign in to access investigation history.",
+        "username": "Username",
+        "password": "Password",
+        "login": "Login",
+        "back_dashboard": "Back to Dashboard",
+        "history_title": "Investigation History",
+        "history_subtitle": "Filter by date and risk level, then export as CSV.",
+        "dashboard": "Dashboard",
+        "logout": "Logout",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "all": "All",
+        "apply_filter": "Apply Filter",
+        "export_csv": "Export CSV",
+        "id": "ID",
+        "email": "Email",
+        "breaches": "Breaches",
+        "checked_at": "Checked At",
+        "no_logs_found": "No investigation logs found.",
+    },
+    "ms": {
+        "dashboard_title": "BocorCheck Dashboard",
+        "dashboard_subtitle": "Penemuan Kebocoran Data Peribadi menggunakan API HIBP v3",
+        "view_history": "Lihat Sejarah",
+        "admin_logout": "Log Keluar Admin",
+        "admin_login": "Log Masuk Admin",
+        "mock_mode_active": "Mod Data Mock Aktif.",
+        "mock_mode_notice": "Ini hanya cubaan demo FYP tanpa API.",
+        "language": "Bahasa",
+        "english": "Inggeris",
+        "malay": "Melayu",
+        "email_address": "Alamat Emel",
+        "phone_number": "Nombor Telefon",
+        "bank_account_demo": "Akaun Bank (Demo)",
+        "analyze": "Analisis",
+        "send_telegram_test": "Hantar Ujian Telegram",
+        "data_source_mode": "Mod Sumber Data",
+        "auto": "Auto",
+        "mock": "Mock",
+        "live_hibp": "Live (API HIBP)",
+        "effective_mode": "Mod semasa digunakan:",
+        "telegram_not_configured": "Ujian Telegram belum dikonfigurasikan. Tetapkan TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID dalam pembolehubah persekitaran.",
+        "investigation_summary": "Ringkasan Siasatan",
+        "email_checked": "Emel Disemak",
+        "phone_checked": "Nombor Telefon Disemak",
+        "bank_checked": "Akaun Bank Disemak (Demo)",
+        "total_breaches": "Jumlah Kebocoran Ditemui",
+        "risk_level": "Tahap Risiko",
+        "risk_score": "Skor Risiko",
+        "score_of": "Skor: {score} / 100",
+        "phone_osint_check": "Semakan OSINT Nombor Telefon",
+        "valid_format": "Format Sah",
+        "country_code": "Kod Negara",
+        "region": "Wilayah",
+        "phone_exposed": "Telefon Terdedah",
+        "yes": "Ya",
+        "no": "Tidak",
+        "bank_exposure_demo": "Demo Pendedahan Akaun Bank (Konteks Malaysia)",
+        "format_valid": "Format Sah",
+        "masked_account": "Akaun Bertopeng",
+        "exposure_status": "Status Pendedahan",
+        "exposed_mock": "Terdedah (Mock)",
+        "no_exposure_mock": "Tiada Pendedahan (Mock)",
+        "data_source": "Sumber Data",
+        "mock_dataset": "Dataset Mock",
+        "bank_invalid": "Format akaun bank tidak sah. Sila masukkan 10 hingga 16 digit.",
+        "breach_incidents": "Insiden Kebocoran Ditemui",
+        "overall_risk": "Risiko Keseluruhan: {level}",
+        "company_breach": "Syarikat / Kebocoran",
+        "date": "Tarikh",
+        "data_classes": "Kelas Data Bocor",
+        "risk": "Risiko",
+        "recommended_mitigation": "Pelan Mitigasi Disyorkan",
+        "login_title": "Log Masuk Admin",
+        "login_subtitle": "Log masuk untuk akses sejarah siasatan.",
+        "username": "Nama Pengguna",
+        "password": "Kata Laluan",
+        "login": "Log Masuk",
+        "back_dashboard": "Kembali ke Dashboard",
+        "history_title": "Sejarah Siasatan",
+        "history_subtitle": "Tapis mengikut tarikh dan tahap risiko, kemudian eksport sebagai CSV.",
+        "dashboard": "Dashboard",
+        "logout": "Log Keluar",
+        "start_date": "Tarikh Mula",
+        "end_date": "Tarikh Akhir",
+        "all": "Semua",
+        "apply_filter": "Guna Penapis",
+        "export_csv": "Eksport CSV",
+        "id": "ID",
+        "email": "Emel",
+        "breaches": "Kebocoran",
+        "checked_at": "Masa Semakan",
+        "no_logs_found": "Tiada rekod siasatan ditemui.",
+    },
+}
+
+
+def _resolve_language() -> str:
+    preferred = (
+        request.args.get("lang")
+        or request.form.get("lang")
+        or session.get("lang")
+        or DEFAULT_LANGUAGE
+    )
+    preferred = preferred.lower().strip()
+    if preferred not in SUPPORTED_LANGUAGES:
+        preferred = DEFAULT_LANGUAGE
+    session["lang"] = preferred
+    return preferred
+
+
+def tr(key: str, **kwargs: Any) -> str:
+    lang = getattr(g, "lang", DEFAULT_LANGUAGE)
+    bundle = TRANSLATIONS.get(lang, TRANSLATIONS[DEFAULT_LANGUAGE])
+    fallback = TRANSLATIONS[DEFAULT_LANGUAGE]
+    text = bundle.get(key) or fallback.get(key) or key
+    if kwargs:
+        return text.format(**kwargs)
+    return text
+
+
+@app.before_request
+def set_language_context() -> None:
+    g.lang = _resolve_language()
+
+
+@app.context_processor
+def inject_i18n_context() -> Dict[str, Any]:
+    return {
+        "t": tr,
+        "current_lang": getattr(g, "lang", DEFAULT_LANGUAGE),
+        "supported_languages": SUPPORTED_LANGUAGES,
+    }
+
 # Temporary demo fallback for Telegram integration.
 # Revoke and replace after presentation.
 DEMO_TELEGRAM_TOKEN = "8784573630:AAGHKXGUIdZLzVgE0L1aZkM1uzz0_r5o9Bk"
@@ -36,56 +228,177 @@ MYSQL_DEFAULTS = {
     "database": "fyp_osint",
 }
 
+# DB logging is enabled by default so investigation, risk_scores, and alerts
+# are persisted even when app.py is started directly without env bootstrapping.
+# Set ENABLE_DB_LOGGING=false only when intentionally running in DB-offline mode.
+ENABLE_DB_LOGGING = os.getenv("ENABLE_DB_LOGGING", "true").lower() == "true"
+
 # Mock mode helps local demo when API key is not available yet.
 # It can be forced via USE_MOCK_DATA=true in environment variables.
 USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "false").lower() == "true"
 
-# Hardcoded prototype dataset for thesis demo.
-# Includes user's requested university email for presentation use.
+# Hardcoded prototype dataset for thesis demo with realistic Malaysian-context labels.
+MOCK_BREACHES: Dict[str, Dict[str, Any]] = {
+    "fildza@ur.unirazak.edu.my": {
+        "status": "Breached",
+        "risk_score": 45,
+        "risk_level": "MEDIUM",
+        "sources": [
+            {
+                "Name": "EduForumDemo",
+                "BreachDate": "2024-02-11",
+                "DataClasses": ["Email addresses", "Passwords"],
+            }
+        ],
+    },
+    "amin.demo@gmail.com": {
+        "status": "Breached",
+        "risk_score": 95,
+        "risk_level": "HIGH",
+        "sources": [
+            {
+                "Name": "ShopLink",
+                "BreachDate": "2023-08-03",
+                "DataClasses": ["Email addresses", "Passwords", "Full names"],
+            },
+            {
+                "Name": "PayTrack",
+                "BreachDate": "2022-11-19",
+                "DataClasses": ["Financial Information", "Phone numbers"],
+            },
+            {
+                "Name": "RewardsPortal",
+                "BreachDate": "2021-01-14",
+                "DataClasses": ["Passwords", "Date of birth"],
+            },
+        ],
+    },
+    "nur.safe@example.com": {
+        "status": "Safe",
+        "risk_score": 10,
+        "risk_level": "LOW",
+        "sources": [],
+    },
+    "amir.jobseek@gmail.com": {
+        "status": "Breached",
+        "risk_score": 55,
+        "risk_level": "MEDIUM",
+        "sources": [
+            {
+                "Name": "MyJobPortal-MY",
+                "BreachDate": "2024-05-28",
+                "DataClasses": ["Email addresses", "Phone numbers", "Address"],
+            }
+        ],
+    },
+    "siti.telco@outlook.com": {
+        "status": "Breached",
+        "risk_score": 70,
+        "risk_level": "MEDIUM",
+        "sources": [
+            {
+                "Name": "LocalTelco-Leaked",
+                "BreachDate": "2023-04-02",
+                "DataClasses": ["Phone numbers", "Address", "Date of birth"],
+            }
+        ],
+    },
+    "farid.wallet@yahoo.com": {
+        "status": "Breached",
+        "risk_score": 90,
+        "risk_level": "HIGH",
+        "sources": [
+            {
+                "Name": "E-Wallet-Mega-Breach",
+                "BreachDate": "2025-01-07",
+                "DataClasses": [
+                    "Financial Information",
+                    "Passwords",
+                    "Full names",
+                    "Phone numbers",
+                ],
+            }
+        ],
+    },
+    "intan.professional@proton.me": {
+        "status": "Breached",
+        "risk_score": 83,
+        "risk_level": "HIGH",
+        "sources": [
+            {
+                "Name": "LinkedIn-RegionalDump",
+                "BreachDate": "2021-06-24",
+                "DataClasses": ["Email addresses", "Full names", "Usernames"],
+            }
+        ],
+    },
+    "hafiz.lowrisk@example.com": {
+        "status": "Breached",
+        "risk_score": 20,
+        "risk_level": "LOW",
+        "sources": [
+            {
+                "Name": "NewsletterHub",
+                "BreachDate": "2021-11-07",
+                "DataClasses": ["Email addresses", "Usernames"],
+            }
+        ],
+    },
+    "mfildxza@gmail.com": {
+        "status": "Breached",
+        "risk_score": 68,
+        "risk_level": "MEDIUM",
+        "sources": [
+            {
+                "Name": "Shoppe-Marketplace",
+                "BreachDate": "2024-09-16",
+                "DataClasses": ["Email addresses", "Phone numbers"],
+            },
+            {
+                "Name": "MyJobPortal-MY",
+                "BreachDate": "2023-12-01",
+                "DataClasses": ["Phone numbers", "Address", "Date of birth"],
+            },
+        ],
+    },
+}
+
+# Backward-compatible alias used by existing templates and routes.
 MOCK_BREACH_DATA: Dict[str, List[Dict[str, Any]]] = {
-    "fildza@ur.unirazak.edu.my": [
-        {
-            "Name": "EduForumDemo",
-            "BreachDate": "2024-02-11",
-            "DataClasses": ["Email addresses", "Passwords"],
-        }
-    ],
-    "amin.demo@gmail.com": [
-        {
-            "Name": "ShopLink",
-            "BreachDate": "2023-08-03",
-            "DataClasses": ["Email addresses", "Passwords"],
-        },
-        {
-            "Name": "PayTrack",
-            "BreachDate": "2022-05-15",
-            "DataClasses": ["Email addresses", "Financial Information"],
-        },
-    ],
-    "nur.safe@example.com": [],
-    "hafiz.lowrisk@example.com": [
-        {
-            "Name": "NewsletterHub",
-            "BreachDate": "2021-11-07",
-            "DataClasses": ["Email addresses"],
-        }
-    ],
+    email: profile.get("sources", []) for email, profile in MOCK_BREACHES.items()
 }
 
 MOCK_PHONE_BREACH_DATA: Dict[str, List[Dict[str, Any]]] = {
     "+60123456789": [
         {
-            "Name": "MobileMart",
+            "Name": "MyShopDelivery",
             "BreachDate": "2024-07-20",
             "DataClasses": ["Phone numbers", "Email addresses"],
         }
     ],
     "+60135550011": [
         {
-            "Name": "RewardsPortal",
-            "BreachDate": "2020-02-14",
-            "DataClasses": ["Phone numbers", "Passwords"],
+            "Name": "LocalTelco-Leaked",
+            "BreachDate": "2023-10-09",
+            "DataClasses": ["Phone numbers", "Address"],
+        },
+        {
+            "Name": "E-Wallet-Mega-Breach",
+            "BreachDate": "2025-01-07",
+            "DataClasses": ["Phone numbers", "Financial Information"],
         }
+    ],
+    "+601136005936": [
+        {
+            "Name": "Shoppe-Marketplace",
+            "BreachDate": "2024-09-16",
+            "DataClasses": ["Phone numbers", "Email addresses"],
+        },
+        {
+            "Name": "LocalTelco-Leaked",
+            "BreachDate": "2023-06-21",
+            "DataClasses": ["Phone numbers", "Address"],
+        },
     ],
 }
 
@@ -232,12 +545,69 @@ def send_telegram_test_alert(
         return {"ok": False, "message": "Failed to send Telegram alert. Check network/token."}
 
 
+def send_telegram_alert(
+    email: str,
+    risk_score: int,
+    risk_level: str,
+    breach_count: int,
+) -> Dict[str, Any]:
+    """
+    Send automatic Telegram alert when risk_score >= 70.
+    Required message fields: email, risk score, risk level, breach count.
+    """
+    cfg = get_telegram_config()
+    token = cfg["token"]
+    chat_id = cfg["chat_id"]
+
+    if not token or not chat_id:
+        return {
+            "ok": False,
+            "message": "Telegram token/chat ID not configured in environment variables.",
+        }
+
+    level_upper = (risk_level or "LOW").strip().upper()
+    if level_upper == "HIGH":
+        risk_level_label = "High"
+    elif level_upper == "MEDIUM":
+        risk_level_label = "Medium"
+    else:
+        risk_level_label = "Low"
+
+    message_lines = [
+        "OSINT Auto Alert",
+        f"Email: {email or '-'}",
+        f"Risk Score: {risk_score}",
+        f"Risk Level: {risk_level_label}",
+        f"Breaches: {breach_count}",
+    ]
+
+    payload = {
+        "chat_id": chat_id,
+        "text": "\n".join(message_lines),
+    }
+
+    try:
+        response = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if not result.get("ok"):
+            return {"ok": False, "message": "Telegram API rejected the auto-alert."}
+        return {"ok": True, "message": "Auto Telegram alert sent successfully."}
+    except requests.RequestException:
+        return {"ok": False, "message": "Failed to send auto Telegram alert."}
+
+
 def query_mock_breaches(email: str) -> List[Dict[str, Any]]:
     """
     Return hardcoded breach records for demo emails.
     Unknown emails default to no breach for safe-message demonstration.
     """
-    return MOCK_BREACH_DATA.get(email.lower(), [])
+    profile = MOCK_BREACHES.get(email.lower(), {})
+    return profile.get("sources", [])
 
 
 def query_mock_phone_breaches(phone_number: str) -> List[Dict[str, Any]]:
@@ -245,6 +615,84 @@ def query_mock_phone_breaches(phone_number: str) -> List[Dict[str, Any]]:
     Return hardcoded breach records for demo phone numbers.
     """
     return MOCK_PHONE_BREACH_DATA.get(phone_number, [])
+
+
+def check_email_logic(
+    email: str,
+    phone_number: str = "",
+    use_mock: bool = True,
+) -> Dict[str, Any]:
+    """
+    Consolidated lookup logic for email and optional phone checks.
+    In mock mode, prefer explicit risk scores from MOCK_BREACHES and return
+    phone exposure source details for realistic demo behavior.
+    """
+    normalized_email = (email or "").strip().lower()
+    normalized_phone = (phone_number or "").strip()
+
+    breaches: List[Dict[str, Any]] = []
+    phone_breaches: List[Dict[str, Any]] = []
+    message = None
+    risk_score = 10
+    risk_level = "LOW"
+
+    if use_mock:
+        profile = MOCK_BREACHES.get(normalized_email, None)
+        if profile:
+            breaches.extend(profile.get("sources", []))
+            risk_score = int(profile.get("risk_score", 10))
+            risk_level = str(profile.get("risk_level", "LOW")).upper()
+
+        if normalized_phone:
+            phone_breaches = query_mock_phone_breaches(normalized_phone)
+            breaches.extend(phone_breaches)
+
+        if phone_breaches and risk_score < 40:
+            risk_score = 40
+            risk_level = "MEDIUM"
+    else:
+        if normalized_email:
+            breaches = query_hibp_breaches(email=normalized_email, api_key=API_KEY)
+        if normalized_phone and not normalized_email:
+            message = (
+                "Phone OSINT completed. Live breach lookup requires email input "
+                "on HIBP v3 account endpoint."
+            )
+
+        dynamic_risk = calculate_risk_score(
+            {
+                "breaches": breaches,
+                "phone_exposed": _contains_phone_exposure(breaches),
+            }
+        )
+        risk_score = dynamic_risk["risk_score"]
+        risk_level = dynamic_risk["risk_level"]
+
+    unique: Dict[str, Dict[str, Any]] = {}
+    for breach in breaches:
+        unique[breach.get("Name", "Unknown")] = breach
+    deduped_breaches = list(unique.values())
+
+    phone_exposed_sources = [
+        {
+            "source": breach.get("Name", "Unknown"),
+            "breach_date": breach.get("BreachDate", "Unknown"),
+            "data_classes": breach.get("DataClasses", []),
+        }
+        for breach in phone_breaches
+    ]
+
+    return {
+        "email": normalized_email,
+        "phone_number": normalized_phone,
+        "breaches": deduped_breaches,
+        "has_breach": bool(deduped_breaches),
+        "phone_exposed": bool(phone_breaches),
+        "phone_exposed_sources": phone_exposed_sources,
+        "risk_score": max(1, min(100, int(risk_score))),
+        "risk_level": str(risk_level).upper(),
+        "message": message,
+    }
 
 
 def query_hibp_breaches(email: str, api_key: str) -> List[Dict[str, Any]]:
@@ -281,22 +729,33 @@ def query_hibp_breaches(email: str, api_key: str) -> List[Dict[str, Any]]:
 
 def calculate_risk(data_classes: List[str]) -> str:
     """
-    Simple risk scoring logic for thesis prototype:
-    - High: if leaked data includes passwords or financial data.
-    - Low: if data only includes email addresses.
-    - Medium: any other combination.
+    Data-class risk logic for thesis prototype:
+    - High: any of Passwords, Full Names, Financial Information.
+    - Medium: any of Phone Numbers, Address, Date of Birth.
+    - Low: only Email Addresses/Usernames.
     """
     normalized = {item.strip().lower() for item in data_classes}
 
-    has_password = "passwords" in normalized
+    has_high = (
+        "passwords" in normalized
+        or "full names" in normalized
+        or any("financial" in item for item in normalized)
+    )
 
-    # HIBP commonly uses labels like "Financial Information".
-    has_financial = any("financial" in item for item in normalized)
-
-    if has_password or has_financial:
+    if has_high:
         return "High"
 
-    if normalized == {"email addresses"}:
+    has_medium = (
+        "phone numbers" in normalized
+        or "phone number" in normalized
+        or "address" in normalized
+        or "date of birth" in normalized
+    )
+
+    if has_medium:
+        return "Medium"
+
+    if normalized.issubset({"email addresses", "usernames"}):
         return "Low"
 
     return "Medium"
@@ -403,16 +862,59 @@ def calculate_risk_score(breach_data: Dict[str, Any]) -> Dict[str, Any]:
     return {"risk_score": score, "risk_level": level}
 
 
+def generate_risk_explanation(
+    risk_score: int,
+    risk_level: str,
+    breach_count: int,
+    sensitive_data: bool,
+) -> str:
+    """
+    Generate a concise risk explanation for DB logging and reporting.
+    """
+    level = (risk_level or "LOW").strip().upper()
+    level_label = "High" if level == "HIGH" else ("Medium" if level == "MEDIUM" else "Low")
+    sensitive_text = "sensitive data exposure detected" if sensitive_data else "no sensitive data exposure detected"
+    return (
+        f"{level_label} risk due to {breach_count} breach(es); "
+        f"risk score {risk_score}; {sensitive_text}."
+    )
+
+
+def has_sensitive_data_exposure(breaches: List[Dict[str, Any]]) -> bool:
+    """
+    Determine if breach data contains sensitive classes.
+    """
+    sensitive_markers = {
+        "passwords",
+        "financial information",
+        "credit cards",
+        "payment history",
+        "phone numbers",
+        "date of birth",
+        "full names",
+    }
+    for breach in breaches:
+        for data_class in breach.get("DataClasses", []):
+            if data_class.strip().lower() in sensitive_markers:
+                return True
+    return False
+
+
 def get_db_connection():
     """
     Create MySQL connection from environment configuration.
     """
+    if not ENABLE_DB_LOGGING:
+        raise MySQLError(msg="DB logging disabled (ENABLE_DB_LOGGING=false).")
+
     config = {
         "host": os.getenv("MYSQL_HOST", MYSQL_DEFAULTS["host"]),
         "port": int(os.getenv("MYSQL_PORT", str(MYSQL_DEFAULTS["port"]))),
         "user": os.getenv("MYSQL_USER", MYSQL_DEFAULTS["user"]),
         "password": os.getenv("MYSQL_PASSWORD", MYSQL_DEFAULTS["password"]),
         "database": os.getenv("MYSQL_DATABASE", MYSQL_DEFAULTS["database"]),
+        # Avoid mysql-connector C-extension instability on some Windows setups.
+        "use_pure": True,
     }
 
     try:
@@ -425,6 +927,7 @@ def get_db_connection():
             "user": MYSQL_DEFAULTS["user"],
             "password": MYSQL_DEFAULTS["password"],
             "database": MYSQL_DEFAULTS["database"],
+            "use_pure": True,
         }
         return connect(**fallback)
 
@@ -456,10 +959,83 @@ def init_db() -> None:
     )
     """
 
+    create_login_logs = """
+    CREATE TABLE IF NOT EXISTS login_logs (
+        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        ip_address VARCHAR(64) NOT NULL,
+        user_agent VARCHAR(512) NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_login_logs_username (username),
+        INDEX idx_login_logs_action (action),
+        INDEX idx_login_logs_created_at (created_at)
+    )
+    """
+
+    create_risk_scores = """
+    CREATE TABLE IF NOT EXISTS risk_scores (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        investigation_id INT NOT NULL,
+        breach_count INT,
+        sensitive_data BOOLEAN,
+        risk_score INT,
+        risk_level VARCHAR(10),
+        explanation TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (investigation_id)
+        REFERENCES investigation_logs(id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB
+    """
+
+    create_alerts = """
+    CREATE TABLE IF NOT EXISTS alerts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        investigation_id INT NOT NULL,
+        alert_type VARCHAR(50),
+        message TEXT,
+        status VARCHAR(20),
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (investigation_id)
+        REFERENCES investigation_logs(id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB
+    """
+
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             cursor.execute(create_investigation_logs)
             cursor.execute(create_breach_results)
+            cursor.execute(create_login_logs)
+            cursor.execute(create_risk_scores)
+            cursor.execute(create_alerts)
+        conn.commit()
+
+
+def log_user_activity(username: str, role: str, action: str) -> None:
+    """
+    Persist login activity events to MySQL.
+    Uses Flask request context to capture client IP and User-Agent.
+    """
+    insert_log = """
+    INSERT INTO login_logs (username, role, action, ip_address, user_agent)
+    VALUES (%s, %s, %s, %s, %s)
+    """
+
+    safe_username = (username or "unknown").strip()[:255]
+    safe_role = (role or "unknown").strip()[:50]
+    safe_action = (action or "unknown").strip()[:50]
+    ip_address = (request.remote_addr or "unknown")[:64]
+    user_agent = (request.headers.get("User-Agent") or "unknown")[:512]
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                insert_log,
+                (safe_username, safe_role, safe_action, ip_address, user_agent),
+            )
         conn.commit()
 
 
@@ -469,7 +1045,7 @@ def save_investigation(
     breaches: List[Dict[str, Any]],
     risk_score: int,
     risk_level: str,
-) -> None:
+) -> int:
     """
     Persist one investigation summary and its breach details in MySQL.
     """
@@ -508,6 +1084,74 @@ def save_investigation(
                     ),
                 )
 
+        conn.commit()
+    return investigation_id
+
+
+def save_risk_score(
+    investigation_id: int,
+    breach_count: int,
+    sensitive_data: bool,
+    risk_score: int,
+    risk_level: str,
+    explanation: str,
+) -> None:
+    """
+    Persist computed risk scoring details.
+    """
+    insert_risk = """
+    INSERT INTO risk_scores (
+        investigation_id, breach_count, sensitive_data, risk_score, risk_level, explanation
+    ) VALUES (%s, %s, %s, %s, %s, %s)
+    """
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                insert_risk,
+                (
+                    investigation_id,
+                    breach_count,
+                    1 if sensitive_data else 0,
+                    risk_score,
+                    risk_level,
+                    explanation,
+                ),
+            )
+        conn.commit()
+
+
+def has_alert_for_investigation(investigation_id: int, alert_type: str) -> bool:
+    """
+    Prevent duplicate alerts for the same investigation and alert type.
+    """
+    query = """
+    SELECT 1 FROM alerts
+    WHERE investigation_id = %s AND alert_type = %s
+    LIMIT 1
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(query, (investigation_id, alert_type))
+            return cursor.fetchone() is not None
+
+
+def log_alert(
+    investigation_id: int,
+    alert_type: str,
+    message: str,
+    status: str,
+) -> None:
+    """
+    Persist alert delivery log.
+    """
+    insert_alert = """
+    INSERT INTO alerts (investigation_id, alert_type, message, status)
+    VALUES (%s, %s, %s, %s)
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(insert_alert, (investigation_id, alert_type, message, status))
         conn.commit()
 
 
@@ -661,53 +1305,41 @@ def index() -> str:
             )
             return render_template("index.html", **context)
 
-        breaches: List[Dict[str, Any]] = []
-        if use_mock:
-            if email:
-                breaches.extend(query_mock_breaches(email=email))
-            if phone_analysis["normalized"]:
-                breaches.extend(query_mock_phone_breaches(phone_analysis["normalized"]))
-        else:
-            if API_KEY == "YOUR_HIBP_API_KEY_HERE":
-                context["error"] = (
-                    "Live API mode selected but HIBP API key is missing. "
-                    "Set HIBP_API_KEY or switch to Mock mode."
-                )
-                return render_template("index.html", **context)
+        if not use_mock and API_KEY == "YOUR_HIBP_API_KEY_HERE":
+            context["error"] = (
+                "Live API mode selected but HIBP API key is missing. "
+                "Set HIBP_API_KEY or switch to Mock mode."
+            )
+            return render_template("index.html", **context)
 
-            if email:
-                try:
-                    breaches = query_hibp_breaches(email=email, api_key=API_KEY)
-                except requests.HTTPError as exc:
-                    context["error"] = (
-                        f"HIBP request failed with status {exc.response.status_code}. "
-                        "Please check API key, rate limits, or try again later."
-                    )
-                    return render_template("index.html", **context)
-                except requests.RequestException:
-                    context["error"] = "Network error while contacting HIBP API."
-                    return render_template("index.html", **context)
+        try:
+            lookup_result = check_email_logic(
+                email=email,
+                phone_number=phone_analysis["normalized"] or phone_number,
+                use_mock=use_mock,
+            )
+        except requests.HTTPError as exc:
+            context["error"] = (
+                f"HIBP request failed with status {exc.response.status_code}. "
+                "Please check API key, rate limits, or try again later."
+            )
+            return render_template("index.html", **context)
+        except requests.RequestException:
+            context["error"] = "Network error while contacting HIBP API."
+            return render_template("index.html", **context)
 
-            # HIBP account endpoint does not support direct phone-only search.
-            if phone_number and not email:
-                context["message"] = (
-                    "Phone OSINT completed. Live breach lookup requires email input on HIBP v3 account endpoint."
-                )
+        breaches = lookup_result["breaches"]
+        context["phone_exposed"] = lookup_result["phone_exposed"]
+        if lookup_result.get("phone_exposed") and lookup_result.get("phone_exposed_sources"):
+            source_names = ", ".join(
+                source["source"] for source in lookup_result["phone_exposed_sources"]
+            )
+            context["message"] = f"Phone Exposed: Yes (Source: {source_names})"
+        elif lookup_result.get("message"):
+            context["message"] = lookup_result["message"]
 
-        # Deduplicate by breach name to avoid duplicate rows when email+phone produce same mock breach.
-        unique: Dict[str, Dict[str, Any]] = {}
-        for breach in breaches:
-            unique[breach.get("Name", "Unknown")] = breach
-        breaches = list(unique.values())
-
-        phone_exposed = _contains_phone_exposure(breaches)
-        context["phone_exposed"] = phone_exposed
-
-        risk_result = calculate_risk_score(
-            {"breaches": breaches, "phone_exposed": phone_exposed}
-        )
-        risk_score = risk_result["risk_score"]
-        risk_level = risk_result["risk_level"]
+        risk_score = lookup_result["risk_score"]
+        risk_level = lookup_result["risk_level"]
 
         context["risk_score"] = risk_score
         context["risk_level"] = risk_level
@@ -719,13 +1351,51 @@ def index() -> str:
             context["tips"] = get_mitigation_tips(risk_level="Low", has_breach=False)
 
             try:
-                save_investigation(
+                investigation_id = save_investigation(
                     email=email,
                     phone_number=phone_analysis["normalized"] or phone_number,
                     breaches=breaches,
                     risk_score=risk_score,
                     risk_level=risk_level,
                 )
+
+                sensitive_data = has_sensitive_data_exposure(breaches)
+                explanation = generate_risk_explanation(
+                    risk_score=risk_score,
+                    risk_level=risk_level,
+                    breach_count=len(breaches),
+                    sensitive_data=sensitive_data,
+                )
+                save_risk_score(
+                    investigation_id=investigation_id,
+                    breach_count=len(breaches),
+                    sensitive_data=sensitive_data,
+                    risk_score=risk_score,
+                    risk_level=risk_level,
+                    explanation=explanation,
+                )
+
+                if risk_score >= 70 and not has_alert_for_investigation(
+                    investigation_id, "telegram_auto_high_risk"
+                ):
+                    alert_result = send_telegram_alert(
+                        email=email,
+                        risk_score=risk_score,
+                        risk_level=risk_level,
+                        breach_count=len(breaches),
+                    )
+                    log_alert(
+                        investigation_id=investigation_id,
+                        alert_type="telegram_auto_high_risk",
+                        message=alert_result["message"],
+                        status="sent" if alert_result["ok"] else "failed",
+                    )
+                    if alert_result["ok"]:
+                        context["telegram_ok"] = True
+                        context["telegram_status"] = alert_result["message"]
+                    else:
+                        context["telegram_ok"] = False
+                        context["telegram_status"] = alert_result["message"]
             except MySQLError:
                 context["db_warning"] = (
                     "MySQL logging failed. Check DB credentials or server status in environment variables."
@@ -769,13 +1439,51 @@ def index() -> str:
         )
 
         try:
-            save_investigation(
+            investigation_id = save_investigation(
                 email=email,
                 phone_number=phone_analysis["normalized"] or phone_number,
                 breaches=breaches,
                 risk_score=risk_score,
                 risk_level=risk_level,
             )
+
+            sensitive_data = has_sensitive_data_exposure(breaches)
+            explanation = generate_risk_explanation(
+                risk_score=risk_score,
+                risk_level=risk_level,
+                breach_count=len(breaches),
+                sensitive_data=sensitive_data,
+            )
+            save_risk_score(
+                investigation_id=investigation_id,
+                breach_count=len(breaches),
+                sensitive_data=sensitive_data,
+                risk_score=risk_score,
+                risk_level=risk_level,
+                explanation=explanation,
+            )
+
+            if risk_score >= 70 and not has_alert_for_investigation(
+                investigation_id, "telegram_auto_high_risk"
+            ):
+                alert_result = send_telegram_alert(
+                    email=email,
+                    risk_score=risk_score,
+                    risk_level=risk_level,
+                    breach_count=len(breaches),
+                )
+                log_alert(
+                    investigation_id=investigation_id,
+                    alert_type="telegram_auto_high_risk",
+                    message=alert_result["message"],
+                    status="sent" if alert_result["ok"] else "failed",
+                )
+                if alert_result["ok"]:
+                    context["telegram_ok"] = True
+                    context["telegram_status"] = alert_result["message"]
+                else:
+                    context["telegram_ok"] = False
+                    context["telegram_status"] = alert_result["message"]
         except MySQLError:
             context["db_warning"] = (
                 "MySQL logging failed. Check DB credentials or server status in environment variables."
@@ -797,7 +1505,23 @@ def admin_login() -> str:
 
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session["is_admin"] = True
+            session["admin_username"] = username
+            session["admin_role"] = "admin"
+            try:
+                log_user_activity(username=username, role="admin", action="login")
+            except MySQLError:
+                # Authentication success should not fail when logging table is unavailable.
+                pass
             return redirect(url_for("history"))
+
+        try:
+            log_user_activity(
+                username=username or "unknown",
+                role="guest",
+                action="failed_login",
+            )
+        except MySQLError:
+            pass
 
         error = "Invalid admin credentials."
 
@@ -806,7 +1530,17 @@ def admin_login() -> str:
 
 @app.route("/admin/logout")
 def admin_logout():
+    username = session.get("admin_username") or "unknown"
+    role = session.get("admin_role") or ("admin" if session.get("is_admin") else "guest")
+
+    try:
+        log_user_activity(username=username, role=role, action="logout")
+    except MySQLError:
+        pass
+
     session.pop("is_admin", None)
+    session.pop("admin_username", None)
+    session.pop("admin_role", None)
     return redirect(url_for("index"))
 
 
@@ -904,4 +1638,5 @@ if __name__ == "__main__":
     except MySQLError:
         # App still runs for demo even if DB is unavailable, but logging is disabled.
         pass
-    app.run(debug=True)
+    # Disable reloader to avoid duplicate process behavior in Windows/VS Code debugging.
+    app.run(debug=True, use_reloader=False)
