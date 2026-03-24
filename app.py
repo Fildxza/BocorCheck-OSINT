@@ -3,6 +3,7 @@ import csv
 from io import StringIO
 from datetime import date, datetime
 from typing import List, Dict, Any, Optional
+from functools import wraps
 
 import phonenumbers
 import requests
@@ -10,9 +11,35 @@ from flask import Flask, render_template, request, redirect, url_for, session, R
 from mysql.connector import Error as MySQLError
 from mysql.connector import connect
 
+from auth import (
+    create_user,
+    login_user,
+    get_user_by_id,
+    check_user_exists,
+)
+
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-for-production")
+
+# Session security configuration
+app.config['SESSION_COOKIE_SECURE'] = os.getenv("FLASK_ENV") == "production"
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = 7200  # 2 hours
+
+# Login required decorator for protected routes
+def login_required(f):
+    """
+    Decorator to require login for protected routes.
+    Redirects to login page if user not authenticated.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Replace this with your real HIBP API key for local testing.
 # Recommended: keep it in an environment variable instead of hardcoding.
@@ -205,6 +232,12 @@ def tr(key: str, **kwargs: Any) -> str:
 @app.before_request
 def set_language_context() -> None:
     g.lang = _resolve_language()
+    
+    # Load user data if logged in
+    if 'user_id' in session:
+        g.user = get_user_by_id(session['user_id'])
+    else:
+        g.user = None
 
 
 @app.context_processor
@@ -213,6 +246,7 @@ def inject_i18n_context() -> Dict[str, Any]:
         "t": tr,
         "current_lang": getattr(g, "lang", DEFAULT_LANGUAGE),
         "supported_languages": SUPPORTED_LANGUAGES,
+        "current_user": getattr(g, "user", None),
     }
 
 # Temporary demo fallback for Telegram integration.
@@ -934,18 +968,43 @@ def get_db_connection():
 
 def init_db() -> None:
     """
-    Initialize required investigation tables.
+    Initialize required tables including users table for authentication.
     """
+    create_users = """
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) NOT NULL DEFAULT 'user',
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        INDEX idx_users_email (email),
+        INDEX idx_users_username (username),
+        INDEX idx_users_created_at (created_at)
+    ) ENGINE=InnoDB
+    """
+
     create_investigation_logs = """
     CREATE TABLE IF NOT EXISTS investigation_logs (
         id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NULL,
         email VARCHAR(255) NULL,
         phone_number VARCHAR(32) NULL,
         breach_count INT NOT NULL,
         risk_score INT NOT NULL,
         risk_level VARCHAR(10) NOT NULL,
-        checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
+        checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_investigation_user
+            FOREIGN KEY (user_id)
+            REFERENCES users(id)
+            ON DELETE SET NULL,
+        INDEX idx_investigation_user_id (user_id),
+        INDEX idx_investigation_checked_at (checked_at),
+        INDEX idx_investigation_risk_level (risk_level),
+        INDEX idx_investigation_email (email)
+    ) ENGINE=InnoDB
     """
 
     create_breach_results = """
@@ -955,8 +1014,10 @@ def init_db() -> None:
         breach_name VARCHAR(255) NOT NULL,
         breach_date DATE NULL,
         data_exposed TEXT,
-        FOREIGN KEY (investigation_id) REFERENCES investigation_logs(id) ON DELETE CASCADE
-    )
+        FOREIGN KEY (investigation_id) REFERENCES investigation_logs(id) ON DELETE CASCADE,
+        INDEX idx_breach_investigation_id (investigation_id),
+        INDEX idx_breach_date (breach_date)
+    ) ENGINE=InnoDB
     """
 
     create_login_logs = """
@@ -971,7 +1032,7 @@ def init_db() -> None:
         INDEX idx_login_logs_username (username),
         INDEX idx_login_logs_action (action),
         INDEX idx_login_logs_created_at (created_at)
-    )
+    ) ENGINE=InnoDB
     """
 
     create_risk_scores = """
@@ -986,7 +1047,10 @@ def init_db() -> None:
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (investigation_id)
         REFERENCES investigation_logs(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+        INDEX idx_risk_scores_investigation_id (investigation_id),
+        INDEX idx_risk_scores_level (risk_level),
+        INDEX idx_risk_scores_created_at (created_at)
     ) ENGINE=InnoDB
     """
 
@@ -1000,12 +1064,17 @@ def init_db() -> None:
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (investigation_id)
         REFERENCES investigation_logs(id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+        INDEX idx_alerts_investigation_id (investigation_id),
+        INDEX idx_alerts_status (status),
+        INDEX idx_alerts_sent_at (sent_at),
+        UNIQUE KEY uq_alert_per_investigation_type (investigation_id, alert_type)
     ) ENGINE=InnoDB
     """
 
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
+            cursor.execute(create_users)
             cursor.execute(create_investigation_logs)
             cursor.execute(create_breach_results)
             cursor.execute(create_login_logs)
@@ -1045,13 +1114,15 @@ def save_investigation(
     breaches: List[Dict[str, Any]],
     risk_score: int,
     risk_level: str,
+    user_id: Optional[int] = None,
 ) -> int:
     """
     Persist one investigation summary and its breach details in MySQL.
+    Links investigation to user if user_id provided.
     """
     insert_log = """
-    INSERT INTO investigation_logs (email, phone_number, breach_count, risk_score, risk_level)
-    VALUES (%s, %s, %s, %s, %s)
+    INSERT INTO investigation_logs (user_id, email, phone_number, breach_count, risk_score, risk_level)
+    VALUES (%s, %s, %s, %s, %s, %s)
     """
 
     insert_breach = """
@@ -1064,6 +1135,7 @@ def save_investigation(
             cursor.execute(
                 insert_log,
                 (
+                    user_id,
                     email or None,
                     phone_number or None,
                     len(breaches),
@@ -1159,9 +1231,11 @@ def fetch_investigation_history(
     start_date: str = "",
     end_date: str = "",
     risk_level: str = "",
+    user_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     Get investigation logs with optional date and risk filters.
+    If user_id is provided, only fetches that user's investigations.
     """
     query = """
     SELECT id, email, phone_number, breach_count, risk_score, risk_level, checked_at
@@ -1169,6 +1243,11 @@ def fetch_investigation_history(
     WHERE 1=1
     """
     params: List[Any] = []
+
+    # User isolation: only show user's own investigations
+    if user_id:
+        query += " AND user_id = %s"
+        params.append(user_id)
 
     if start_date:
         query += " AND DATE(checked_at) >= %s"
@@ -1254,7 +1333,9 @@ def index() -> str:
         "mock_phone_numbers": list(MOCK_PHONE_BREACH_DATA.keys()),
         "mock_bank_accounts": MOCK_BANK_ACCOUNT_SAMPLES,
         "is_telegram_configured": is_telegram_configured(),
-        "is_admin": is_admin_logged_in(),
+        "is_admin": session.get("is_admin", False),
+        "is_authenticated": 'user_id' in session,
+        "current_username": session.get("username"),
     }
 
     if request.method == "POST":
@@ -1357,6 +1438,7 @@ def index() -> str:
                     breaches=breaches,
                     risk_score=risk_score,
                     risk_level=risk_level,
+                    user_id=session.get('user_id'),
                 )
 
                 sensitive_data = has_sensitive_data_exposure(breaches)
@@ -1445,6 +1527,7 @@ def index() -> str:
                 breaches=breaches,
                 risk_score=risk_score,
                 risk_level=risk_level,
+                user_id=session.get('user_id'),
             )
 
             sensitive_data = has_sensitive_data_exposure(breaches)
@@ -1492,10 +1575,130 @@ def index() -> str:
     return render_template("index.html", **context)
 
 
+@app.route("/signup", methods=["GET", "POST"])
+def signup() -> str:
+    """
+    User registration route.
+    GET: Show signup form
+    POST: Create new user account
+    """
+    error = None
+    success = None
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
+        password_confirm = request.form.get("password_confirm", "").strip()
+
+        # Validate password confirmation
+        if password != password_confirm:
+            error = "Passwords do not match."
+            return render_template("signup.html", error=error, username=username, email=email)
+
+        # Create user using auth module
+        success_flag, message, user_id = create_user(
+            username=username,
+            email=email,
+            password=password,
+            role="user"
+        )
+
+        if success_flag:
+            # Log signup activity
+            try:
+                log_user_activity(username=username, role="user", action="signup")
+            except MySQLError:
+                pass
+
+            # Redirect to login with success message
+            return redirect(url_for("login", signup_success="1"))
+        else:
+            error = message
+
+    return render_template("signup.html", error=error)
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login() -> str:
+    """
+    User login route.
+    GET: Show login form
+    POST: Authenticate user and create session
+    """
+    error = None
+    signup_success = request.args.get("signup_success")
+
+    if request.method == "POST":
+        email_or_username = request.form.get("email_or_username", "").strip()
+        password = request.form.get("password", "")
+
+        # Attempt login using auth module
+        success, message, user_data = login_user(email_or_username, password)
+
+        if success:
+            # Create session
+            session['user_id'] = user_data['id']
+            session['username'] = user_data['username']
+            session['email'] = user_data['email']
+            session['role'] = user_data['role']
+            session.permanent = True
+
+            # Log login activity
+            try:
+                log_user_activity(
+                    username=user_data['username'],
+                    role=user_data['role'],
+                    action="login"
+                )
+            except MySQLError:
+                pass
+
+            # Redirect to dashboard
+            return redirect(url_for("index"))
+        else:
+            error = message
+            # Log failed login attempt
+            try:
+                log_user_activity(
+                    username=email_or_username or "unknown",
+                    role="guest",
+                    action="failed_login"
+                )
+            except MySQLError:
+                pass
+
+    return render_template(
+        "login.html",
+        error=error,
+        signup_success=signup_success
+    )
+
+
+@app.route("/logout")
+def logout():
+    """
+    User logout route.
+    Clears session and redirects to home.
+    """
+    username = session.get("username") or "unknown"
+    role = session.get("role") or "user"
+
+    try:
+        log_user_activity(username=username, role=role, action="logout")
+    except MySQLError:
+        pass
+
+    session.clear()
+    return redirect(url_for("index"))
+
+
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login() -> str:
     """
     Simple admin login to protect investigation history.
+    DEPRECATED: Use /login for user authentication instead.
+    Kept for backward compatibility during transition.
     """
     error = None
 
@@ -1510,7 +1713,6 @@ def admin_login() -> str:
             try:
                 log_user_activity(username=username, role="admin", action="login")
             except MySQLError:
-                # Authentication success should not fail when logging table is unavailable.
                 pass
             return redirect(url_for("history"))
 
@@ -1530,6 +1732,10 @@ def admin_login() -> str:
 
 @app.route("/admin/logout")
 def admin_logout():
+    """
+    DEPRECATED: Use /logout instead.
+    Legacy route kept for backward compatibility.
+    """
     username = session.get("admin_username") or "unknown"
     role = session.get("admin_role") or ("admin" if session.get("is_admin") else "guest")
 
@@ -1548,9 +1754,16 @@ def admin_logout():
 def history() -> str:
     """
     Investigation history view with optional date/risk filters.
+    Requires authentication (user login or admin login).
+    Regular users see only their own investigations.
+    Admins see all investigations.
     """
-    if not is_admin_logged_in():
-        return redirect(url_for("admin_login"))
+    # Check authentication: either new user session OR old admin session
+    is_user_authenticated = 'user_id' in session
+    is_admin_authenticated = session.get("is_admin")
+
+    if not (is_user_authenticated or is_admin_authenticated):
+        return redirect(url_for("login"))
 
     start_date = request.args.get("start_date", "").strip()
     end_date = request.args.get("end_date", "").strip()
@@ -1558,8 +1771,18 @@ def history() -> str:
 
     rows: List[Dict[str, Any]] = []
     error = None
+
     try:
-        rows = fetch_investigation_history(start_date, end_date, risk_level)
+        # For regular users, filter by their user_id
+        # For admins, show all investigations
+        if is_user_authenticated:
+            rows = fetch_investigation_history(
+                start_date, end_date, risk_level,
+                user_id=session.get('user_id')
+            )
+        else:
+            # Admin view: show all
+            rows = fetch_investigation_history(start_date, end_date, risk_level)
     except MySQLError:
         error = "Unable to load investigation history. Please verify MySQL connection."
 
@@ -1570,6 +1793,7 @@ def history() -> str:
         end_date=end_date,
         risk_level=risk_level,
         error=error,
+        is_admin=is_admin_authenticated,
     )
 
 
@@ -1577,16 +1801,28 @@ def history() -> str:
 def export_history_csv():
     """
     Export filtered investigation history as CSV for FYP evidence.
+    Requires authentication; regular users export only their data.
     """
-    if not is_admin_logged_in():
-        return redirect(url_for("admin_login"))
+    # Check authentication
+    is_user_authenticated = 'user_id' in session
+    is_admin_authenticated = session.get("is_admin")
+
+    if not (is_user_authenticated or is_admin_authenticated):
+        return redirect(url_for("login"))
 
     start_date = request.args.get("start_date", "").strip()
     end_date = request.args.get("end_date", "").strip()
     risk_level = request.args.get("risk_level", "").strip().upper()
 
     try:
-        rows = fetch_investigation_history(start_date, end_date, risk_level)
+        # For regular users, export only their data
+        if is_user_authenticated:
+            rows = fetch_investigation_history(
+                start_date, end_date, risk_level,
+                user_id=session.get('user_id')
+            )
+        else:
+            rows = fetch_investigation_history(start_date, end_date, risk_level)
     except MySQLError:
         return Response(
             "Unable to export CSV. Please verify MySQL connection.",

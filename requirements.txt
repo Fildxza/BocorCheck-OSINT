@@ -3,3 +3,4 @@ requests==2.32.3
 python-telegram-bot==21.10
 phonenumbers==8.13.55
 mysql-connector-python==9.2.0
+bcrypt==4.1.3

@@ -237,9 +237,19 @@
 </head>
 <body>
 <div class="shell">
-    <section class="hero">
-        <h1 class="h3">{{ t('dashboard_title') }}</h1>
-        <p>{{ t('dashboard_subtitle') }}</p>
+<section class="hero">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h1 class="h3">{{ t('dashboard_title') }}</h1>
+                <p>{{ t('dashboard_subtitle') }}</p>
+            </div>
+            {% if is_authenticated %}
+            <div class="text-end" style="color: #f8fbff; font-size: 0.95rem;">
+                <div class="small">Logged in as</div>
+                <div class="fw-semibold">{{ current_username }}</div>
+            </div>
+            {% endif %}
+        </div>
         <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
             <form method="get" class="d-flex align-items-center gap-2 me-2">
                 <label class="small fw-semibold text-white-50" for="lang">{{ t('language') }}</label>
@@ -248,11 +258,16 @@
                     <option value="ms" {% if current_lang == 'ms' %}selected{% endif %}>{{ t('malay') }}</option>
                 </select>
             </form>
-            {% if is_admin %}
-            <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
-            <a class="btn btn-sm btn-outline-light" href="{{ url_for('admin_logout', lang=current_lang) }}">{{ t('admin_logout') }}</a>
+            
+            {% if is_authenticated %}
+                <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
+                <a class="btn btn-sm btn-outline-light" href="{{ url_for('logout', lang=current_lang) }}">{{ t('logout') }}</a>
+            {% elif is_admin %}
+                <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
+                <a class="btn btn-sm btn-outline-light" href="{{ url_for('admin_logout', lang=current_lang) }}">{{ t('admin_logout') }}</a>
             {% else %}
-            <a class="btn btn-sm btn-light" href="{{ url_for('admin_login', lang=current_lang) }}">{{ t('admin_login') }}</a>
+                <a class="btn btn-sm btn-light" href="{{ url_for('login', lang=current_lang) }}">Sign In</a>
+                <a class="btn btn-sm btn-outline-light" href="{{ url_for('signup', lang=current_lang) }}">Create Account</a>
             {% endif %}
         </div>
     </section>
