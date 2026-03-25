@@ -546,6 +546,91 @@
                 </ul>
             </div>
             {% endif %}
+
+            {% if mitigation_data %}
+            <div class="section-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">🛡️ Detailed Mitigation Actions</h2>
+                    {% if estimated_mitigation_time %}
+                    <small class="text-muted">⏱️ {{ estimated_mitigation_time }}</small>
+                    {% endif %}
+                </div>
+
+                <div class="mitigation-actions">
+                    {% for action in mitigation_data %}
+                    <div class="action-card mb-3 p-3" style="border-left: 4px solid {% if action.severity == 'HIGH' %}#dc2626{% elif action.severity == 'MEDIUM' %}#f59e0b{% else %}#10b981{% endif %}; background: {% if action.severity == 'HIGH' %}#fef2f2{% elif action.severity == 'MEDIUM' %}#fffbf0{% else %}#f0fdf4{% endif %}; border-radius: 0.5rem;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1">
+                                    <strong>{{ action.priority_label }}</strong>
+                                </h6>
+                                <h6 class="mb-1">{{ action.title }}</h6>
+                            </div>
+                            <span class="badge" style="background: {% if action.severity == 'HIGH' %}#dc2626{% elif action.severity == 'MEDIUM' %}#f59e0b{% else %}#10b981{% endif %}; color: white;">
+                                {{ action.severity }}
+                            </span>
+                        </div>
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">{{ action.description }}</p>
+                        
+                        {% if action.steps %}
+                        <details style="margin-top: 0.5rem;">
+                            <summary style="cursor: pointer; color: #0b57d0; font-weight: 500;">View Steps ({{ action.steps|length }})</summary>
+                            <ol style="margin-top: 0.5rem; padding-left: 1.25rem; font-size: 0.9rem;">
+                                {% for step in action.steps %}
+                                <li class="mb-1">{{ step }}</li>
+                                {% endfor %}
+                            </ol>
+                        </details>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between mt-2" style="font-size: 0.85rem;">
+                            <span>🏷️ {{ action.action_type }}</span>
+                            <span>⏱️ {{ action.time }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if malaysian_resources %}
+            <div class="section-card">
+                <h2 class="h5 mb-3">🇲🇾 Malaysian Resources & Contact Information</h2>
+                
+                <div class="malaysian-resources">
+                    {% for resource in malaysian_resources %}
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>{{ resource.resource_name }}</strong></h6>
+                                <span class="badge bg-info">{{ resource.resource_type }}</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">{{ resource.description }}</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            {% if resource.phone %}
+                            <div class="mb-1">📞 <strong>Phone:</strong> {{ resource.phone }}</div>
+                            {% endif %}
+                            {% if resource.email %}
+                            <div class="mb-1">📧 <strong>Email:</strong> {{ resource.email }}</div>
+                            {% endif %}
+                            {% if resource.website %}
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="{{ resource.website }}" target="_blank">{{ resource.website }}</a></div>
+                            {% endif %}
+                            {% if resource.operating_hours %}
+                            <div class="mb-1">🕐 <strong>Hours:</strong> {{ resource.operating_hours }}</div>
+                            {% endif %}
+                            {% if resource.availability %}
+                            <div>✅ <strong>Available:</strong> {{ resource.availability }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

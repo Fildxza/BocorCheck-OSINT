@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OSINT Breach Discovery Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f7fb;
+            --bg-accent: #dbeafe;
+            --panel: #ffffff;
+            --ink: #0f172a;
+            --muted: #475569;
+            --primary: #0b57d0;
+            --primary-soft: #e8f0ff;
+            --danger-soft: #ffe8ea;
+            --warning-soft: #fff3e6;
+            --success-soft: #e8f8ef;
+            --border: #dbe4ee;
+            --shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "DM Sans", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 14% 14%, rgba(11, 87, 208, 0.14) 0, rgba(11, 87, 208, 0) 36%),
+                radial-gradient(circle at 85% 10%, rgba(16, 185, 129, 0.16) 0, rgba(16, 185, 129, 0) 28%),
+                linear-gradient(165deg, var(--bg-main) 0%, #eef4fb 52%, var(--bg-accent) 100%);
+        }
+
+        .shell {
+            max-width: 1080px;
+            margin: 2.5rem auto;
+            padding: 0 1rem;
+            animation: revealUp 0.55s ease-out;
+        }
+
+        .hero {
+            background: linear-gradient(120deg, #0b57d0 0%, #1d4ed8 50%, #0f4ab3 100%);
+            border-radius: 1.2rem;
+            padding: 1.4rem 1.5rem;
+            color: #f8fbff;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.1rem;
+        }
+
+        .hero h1 {
+            font-family: "Outfit", sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.2px;
+        }
+
+        .hero p {
+            margin-bottom: 0;
+            color: rgba(248, 251, 255, 0.9);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 1.2rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-body {
+            padding: 1.4rem;
+        }
+
+        .section-card {
+            border: 1px solid var(--border);
+            border-radius: 0.95rem;
+            background: #ffffff;
+            padding: 1rem;
+            margin-top: 1rem;
+            animation: fadeIn 0.35s ease-out;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.45rem;
+        }
+
+        .form-control {
+            border-radius: 0.8rem;
+            border: 1px solid #c8d6e6;
+            padding: 0.72rem 0.95rem;
+        }
+
+        .form-control:focus {
+            border-color: #7fb2ff;
+            box-shadow: 0 0 0 0.22rem rgba(11, 87, 208, 0.15);
+        }
+
+        .btn-main {
+            border: 0;
+            border-radius: 0.8rem;
+            padding: 0.72rem 1rem;
+            background: linear-gradient(120deg, #0b57d0 0%, #114dc0 100%);
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .btn-main:hover {
+            background: linear-gradient(120deg, #0a4fbe 0%, #0f43a8 100%);
+            color: #ffffff;
+        }
+
+        .mock-banner {
+            border: 1px dashed #86aef5;
+            background: #eff5ff;
+            border-radius: 0.95rem;
+            color: #1e3a8a;
+            padding: 0.95rem 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sample-chip {
+            display: inline-block;
+            margin: 0.3rem 0.35rem 0 0;
+            padding: 0.35rem 0.62rem;
+            border-radius: 999px;
+            background: #dce9ff;
+            color: #123d8d;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-box {
+            border-radius: 0.9rem;
+            padding: 0.88rem 1rem;
+            margin-top: 1rem;
+            border: 1px solid transparent;
+        }
+
+        .status-error {
+            background: #fff1f2;
+            color: #9f1239;
+            border-color: #fecdd3;
+        }
+
+        .status-safe {
+            background: #ecfdf3;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .risk-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border-radius: 999px;
+            padding: 0.4rem 0.72rem;
+            font-weight: 700;
+            font-size: 0.82rem;
+            border: 1px solid transparent;
+        }
+
+        .risk-high { background: var(--danger-soft); color: #b42318; border-color: #f7b2b7; }
+        .risk-medium { background: var(--warning-soft); color: #b45309; border-color: #f8d09f; }
+        .risk-low { background: var(--success-soft); color: #166534; border-color: #9fe6bb; }
+
+        .table-wrap {
+            border: 1px solid var(--border);
+            border-radius: 0.9rem;
+            overflow: hidden;
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead th {
+            background: #eff4fb;
+            color: #1f2937;
+            border-bottom-color: #d7e3f2;
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            font-weight: 700;
+        }
+
+        .tips-list {
+            margin: 0;
+            padding-left: 1.2rem;
+        }
+
+        .tips-list li {
+            margin-bottom: 0.45rem;
+            color: var(--muted);
+        }
+
+        @keyframes revealUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .shell {
+                margin-top: 1.3rem;
+            }
+
+            .hero,
+            .panel-body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+<section class="hero">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h1 class="h3">BocorCheck Dashboard</h1>
+                <p>Personal Data Breach Discovery using HIBP API v3</p>
+            </div>
+            
+        </div>
+        <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+            <form method="get" class="d-flex align-items-center gap-2 me-2">
+                <label class="small fw-semibold text-white-50" for="lang">Language</label>
+                <select id="lang" name="lang" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="en" selected>English</option>
+                    <option value="ms" >Malay</option>
+                </select>
+            </form>
+            
+            
+                <a class="btn btn-sm btn-light" href="/login?lang=en">Sign In</a>
+                <a class="btn btn-sm btn-outline-light" href="/signup?lang=en">Create Account</a>
+            
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel-body">
+            
+            <div class="mock-banner">
+                <strong>Mock Data Mode Active.</strong>
+                <span class="text-danger fw-semibold">This is only an FYP demo attempt without API.</span>
+                <div class="mt-2">
+                    
+                    <span class="sample-chip">fildza@ur.unirazak.edu.my</span>
+                    
+                    <span class="sample-chip">amin.demo@gmail.com</span>
+                    
+                    <span class="sample-chip">nur.safe@example.com</span>
+                    
+                    <span class="sample-chip">amir.jobseek@gmail.com</span>
+                    
+                    <span class="sample-chip">siti.telco@outlook.com</span>
+                    
+                    <span class="sample-chip">farid.wallet@yahoo.com</span>
+                    
+                    <span class="sample-chip">intan.professional@proton.me</span>
+                    
+                    <span class="sample-chip">hafiz.lowrisk@example.com</span>
+                    
+                    <span class="sample-chip">mfildxza@gmail.com</span>
+                    
+                    
+                    <span class="sample-chip">+60123456789</span>
+                    
+                    <span class="sample-chip">+60135550011</span>
+                    
+                    <span class="sample-chip">+601136005936</span>
+                    
+                    
+                    <span class="sample-chip">1234-5678-9012</span>
+                    
+                    <span class="sample-chip">987654321098</span>
+                    
+                </div>
+            </div>
+            
+
+            <form method="post" class="row g-3 align-items-end">
+                <input type="hidden" name="lang" value="en">
+                <div class="col-md-4">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input
+                        type="email"
+                        class="form-control"
+                        id="email"
+                        name="email"
+                        placeholder="example@email.com"
+                        value="test@example.com"
+                    >
+                </div>
+                <div class="col-md-3">
+                    <label for="phone_number" class="form-label">Phone Number</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="phone_number"
+                        name="phone_number"
+                        placeholder="+60123456789"
+                        value="+60123456789"
+                    >
+                </div>
+                <div class="col-md-3">
+                    <label for="bank_account" class="form-label">Bank Account (Demo)</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="bank_account"
+                        name="bank_account"
+                        placeholder="1234-5678-9012"
+                        value="1234567890"
+                    >
+                </div>
+                <div class="col-md-2 d-grid gap-2">
+                    <button type="submit" name="submit_action" value="analyze" class="btn btn-main">Analyze</button>
+                    <button type="submit" name="submit_action" value="telegram_test" class="btn btn-outline-primary">Send Telegram Test</button>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label d-block mb-2">Data Source Mode</label>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="api_mode" id="mode_auto" value="auto" >
+                            <label class="form-check-label" for="mode_auto">Auto</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="api_mode" id="mode_mock" value="mock" checked>
+                            <label class="form-check-label" for="mode_mock">Mock</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="api_mode" id="mode_live" value="live" >
+                            <label class="form-check-label" for="mode_live">Live (HIBP API)</label>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2">Current effective mode: <strong>Mock</strong></div>
+                </div>
+            </form>
+
+            
+
+            
+            <div class="status-box status-safe">
+                Phone Exposed: Yes (Source: MyShopDelivery)
+            </div>
+            
+
+            
+
+            
+
+            
+
+            
+            <div class="section-card">
+                <h2 class="h5 mb-3">Investigation Summary</h2>
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-3 border rounded-3 h-100">
+                            <div class="text-muted small">Email Checked</div>
+                            <div class="fw-semibold mt-1">test@example.com</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-3 border rounded-3 h-100">
+                            <div class="text-muted small">Phone Number Checked</div>
+                            <div class="fw-semibold mt-1">+60123456789</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-3 border rounded-3 h-100">
+                            <div class="text-muted small">Bank Account Checked (Demo)</div>
+                            <div class="fw-semibold mt-1">1234567890</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-3 border rounded-3 h-100">
+                            <div class="text-muted small">Total Breaches Found</div>
+                            <div class="fw-semibold mt-1">1</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-3 border rounded-3 h-100">
+                            <div class="text-muted small">Risk Level</div>
+                            <div class="fw-semibold mt-1">MEDIUM</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h3 class="h6 mb-0">Risk Score</h3>
+                        <span class="fw-semibold">Score: 40 / 100</span>
+                    </div>
+
+                    
+                    
+                        
+                    
+
+                    <div class="progress" role="progressbar" aria-label="Risk Score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="40" style="height: 20px;">
+                        <div class="progress-bar bg-warning" data-score="40">40%</div>
+                    </div>
+                </div>
+
+                
+                <div class="mt-4">
+                    <h3 class="h6 mb-2">Phone Number OSINT Check</h3>
+                    <div class="row g-3">
+                        <div class="col-md-6 col-lg-3">
+                            <div class="p-2 border rounded-2 small">Valid Format: <strong>Yes</strong></div>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <div class="p-2 border rounded-2 small">Country Code: <strong>+60</strong></div>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <div class="p-2 border rounded-2 small">Region: <strong>MY</strong></div>
+                        </div>
+                        <div class="col-md-6 col-lg-3">
+                            <div class="p-2 border rounded-2 small">Phone Exposed: <strong>Yes</strong></div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+            
+
+            
+            <div class="section-card">
+                <h2 class="h5 mb-3">Bank Exposure Demo (Malaysia Context)</h2>
+                
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-2 border rounded-2 small">Format Valid: <strong>Yes</strong></div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-2 border rounded-2 small">Masked Account: <strong>****7890</strong></div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-2 border rounded-2 small">Exposure Status: <strong>No Exposure (Mock)</strong></div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="p-2 border rounded-2 small">Data Source: <strong>Mock Dataset</strong></div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning mt-2 mb-0" role="alert">
+                    Bank account exposure check uses synthetic mock data for FYP demo only. No real banking system lookup is performed.
+                </div>
+                
+            </div>
+            
+
+            
+            <div class="section-card">
+                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Breach Incidents Found</h2>
+                    
+                        <span class="risk-pill risk-medium">Overall Risk: Medium</span>
+                    
+                </div>
+
+                <div class="table-wrap table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                        <tr>
+                            <th>Company / Breach</th>
+                            <th>Date</th>
+                            <th>Data Classes Leaked</th>
+                            <th>Risk</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        
+                        <tr>
+                            <td class="fw-semibold">MyShopDelivery</td>
+                            <td>2024-07-20</td>
+                            <td>Phone numbers, Email addresses</td>
+                            <td>
+                                
+                                    <span class="risk-pill risk-medium">Medium</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+
+            
+            <div class="section-card">
+                <h2 class="h5 mb-3">Recommended Mitigation Plan</h2>
+                <ul class="tips-list">
+                    
+                    <li>Rotate credentials for key accounts and avoid password reuse.</li>
+                    
+                    <li>Enable two-factor authentication (2FA) where possible.</li>
+                    
+                    <li>Watch for targeted phishing attempts using exposed personal information.</li>
+                    
+                </ul>
+            </div>
+            
+
+            
+
+            
+            <div class="section-card">
+                <h2 class="h5 mb-3">🇲🇾 Malaysian Resources & Contact Information</h2>
+                
+                <div class="malaysian-resources">
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>Maybank - 24/7 Hotline</strong></h6>
+                                <span class="badge bg-info">Bank</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Malaysia largest bank with 24/7 fraud protection hotline</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> 1-300-881-881</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> support@maybank.com</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.maybank.com" target="_blank">www.maybank.com</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> 24/7</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> 24/7</div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>Bank Negara Malaysia</strong></h6>
+                                <span class="badge bg-info">Central Bank</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Malaysia Central Bank - Consumer protection &amp; financial regulations</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> 1-300-88-5465</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> general@bnm.gov.my</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.bnm.gov.my" target="_blank">www.bnm.gov.my</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> Mon-Fri: 9 AM - 5 PM</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> During business hours</div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>MyDebtFreee - Credit Bureau</strong></h6>
+                                <span class="badge bg-info">Credit Bureau</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Malaysia credit information center. Check for identity theft</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> +603-4101 8888</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> info@mydebtfreee.com.my</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.mydebtfreee.com.my" target="_blank">www.mydebtfreee.com.my</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> Mon-Fri: 9 AM - 5 PM</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> 24/7 online</div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>Jabatan Pendaftaran Negara (JPN)</strong></h6>
+                                <span class="badge bg-info">Government Agency</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Malaysian National Registration Department - MyKad/IC verification</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> +603-8000-0000</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> info@jpn.gov.my</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.jpn.gov.my" target="_blank">www.jpn.gov.my</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> Mon-Fri: 8 AM - 5 PM</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> During business hours</div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>MICC - Malaysian Internet Crime Committee</strong></h6>
+                                <span class="badge bg-info">Government Agency</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Official Malaysian agency for cybercrime reporting</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> +603-8000-8000</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> contact@micc.gov.my</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.micc.gov.my" target="_blank">www.micc.gov.my</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> Mon-Fri: 9 AM - 5 PM</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> 24/7 online</div>
+                            
+                        </div>
+                    </div>
+                    
+                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1"><strong>PDRM Cybercrime Division</strong></h6>
+                                <span class="badge bg-info">Police Department</span>
+                            </div>
+                        </div>
+                        
+                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">Royal Malaysia Police cybercrime unit for formal reports</p>
+                        
+                        <div style="font-size: 0.9rem;">
+                            
+                            <div class="mb-1">📞 <strong>Phone:</strong> 03-2100 5250</div>
+                            
+                            
+                            <div class="mb-1">📧 <strong>Email:</strong> cybercrime@rmp.gov.my</div>
+                            
+                            
+                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="www.rmp.gov.my" target="_blank">www.rmp.gov.my</a></div>
+                            
+                            
+                            <div class="mb-1">🕐 <strong>Hours:</strong> Mon-Fri: 8 AM - 6 PM</div>
+                            
+                            
+                            <div>✅ <strong>Available:</strong> Emergency: 999</div>
+                            
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+<script>
+    (function () {
+        var bars = document.querySelectorAll(".progress-bar[data-score]");
+        bars.forEach(function (bar) {
+            var score = parseInt(bar.getAttribute("data-score"), 10);
+            if (Number.isNaN(score)) {
+                score = 0;
+            }
+            score = Math.max(0, Math.min(score, 100));
+            bar.style.width = score + "%";
+        });
+    })();
+</script>
+</body>
+</html>

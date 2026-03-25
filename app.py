@@ -18,6 +18,13 @@ from auth import (
     check_user_exists,
 )
 
+from mitigation import (
+    get_smart_recommendations,
+    get_malaysian_resources,
+    format_mitigation_for_display,
+    calculate_total_time,
+)
+
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-for-production")
@@ -1336,6 +1343,9 @@ def index() -> str:
         "is_admin": session.get("is_admin", False),
         "is_authenticated": 'user_id' in session,
         "current_username": session.get("username"),
+        "mitigation_data": [],
+        "malaysian_resources": [],
+        "estimated_mitigation_time": "0 minutes",
     }
 
     if request.method == "POST":
@@ -1519,6 +1529,49 @@ def index() -> str:
                 "tips": get_mitigation_tips(risk_level=overall_risk, has_breach=True),
             }
         )
+
+        # Fetch mitigation recommendations and Malaysian resources
+        try:
+            # Extract all exposed data types from breaches
+            exposed_data_types = []
+            for breach in breaches:
+                data_classes = breach.get("DataClasses", [])
+                exposed_data_types.extend(data_classes)
+            
+            # Get smart recommendations
+            recommendations = get_smart_recommendations(
+                exposed_data_types=list(set(exposed_data_types)) or ["Email"],
+                risk_level=overall_risk
+            )
+            
+            # Format mitigation data for display
+            formatted_mitigations = []
+            if recommendations.get("critical_actions"):
+                for action in recommendations["critical_actions"]:
+                    formatted_mitigations.append(format_mitigation_for_display(action))
+            
+            if recommendations.get("important_actions"):
+                for action in recommendations["important_actions"]:
+                    formatted_mitigations.append(format_mitigation_for_display(action))
+            
+            # Get Malaysian resources
+            malaysian_resources = get_malaysian_resources()
+            
+            context.update(
+                {
+                    "mitigation_data": formatted_mitigations,
+                    "malaysian_resources": malaysian_resources,
+                    "estimated_mitigation_time": calculate_total_time(
+                        recommendations.get("critical_actions", []) + recommendations.get("important_actions", [])
+                    ),
+                }
+            )
+        except Exception as e:
+            print(f"Error fetching mitigation data: {e}")
+            # Continue without mitigation data if there's an error
+            context["db_warning"] = (
+                "Could not load mitigation recommendations. Check database connection."
+            )
 
         try:
             investigation_id = save_investigation(

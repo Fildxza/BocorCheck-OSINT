@@ -120,6 +120,101 @@ def ddl_statements() -> List[str]:
             UNIQUE KEY uq_alert_per_investigation_type (investigation_id, alert_type)
         ) ENGINE=InnoDB
         """,
+        """
+        CREATE TABLE IF NOT EXISTS breaches (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            date DATE NOT NULL,
+            affected_records INT NOT NULL,
+            description TEXT,
+            severity ENUM('LOW', 'MEDIUM', 'HIGH') DEFAULT 'MEDIUM',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_breach_date (date),
+            INDEX idx_breach_severity (severity),
+            INDEX idx_breach_name (name)
+        ) ENGINE=InnoDB
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS breach_data_types (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            breach_id INT NOT NULL,
+            data_type VARCHAR(100) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_breach_data_types_breach
+                FOREIGN KEY (breach_id)
+                REFERENCES breaches(id)
+                ON DELETE CASCADE,
+            UNIQUE KEY unique_breach_datatype (breach_id, data_type),
+            INDEX idx_breach_data_type (data_type)
+        ) ENGINE=InnoDB
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS user_breach_matches (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            investigation_id INT NOT NULL,
+            breach_id INT NOT NULL,
+            data_type VARCHAR(100),
+            matched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_user_breach_investigation
+                FOREIGN KEY (investigation_id)
+                REFERENCES investigation_logs(id)
+                ON DELETE CASCADE,
+            CONSTRAINT fk_user_breach_breach
+                FOREIGN KEY (breach_id)
+                REFERENCES breaches(id)
+                ON DELETE CASCADE,
+            INDEX idx_user_breach_investigation (investigation_id),
+            INDEX idx_user_breach_breach (breach_id),
+            UNIQUE KEY unique_investigation_breach (investigation_id, breach_id)
+        ) ENGINE=InnoDB
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS mitigation_plans (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            breach_id INT NOT NULL,
+            data_type VARCHAR(100),
+            severity_level VARCHAR(20) NOT NULL,
+            action_type VARCHAR(100) NOT NULL,
+            priority INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL,
+            steps JSON,
+            resources JSON,
+            estimated_time VARCHAR(50),
+            malaysian_context BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_mitigation_breach
+                FOREIGN KEY (breach_id)
+                REFERENCES breaches(id)
+                ON DELETE CASCADE,
+            INDEX idx_mitigation_breach (breach_id),
+            INDEX idx_mitigation_severity (severity_level),
+            INDEX idx_mitigation_priority (priority),
+            INDEX idx_mitigation_action (action_type)
+        ) ENGINE=InnoDB
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS mitigation_resources (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            mitigation_id INT NOT NULL,
+            resource_name VARCHAR(255) NOT NULL,
+            resource_type VARCHAR(50),
+            description TEXT,
+            contact VARCHAR(100),
+            website VARCHAR(500),
+            phone VARCHAR(50),
+            email VARCHAR(255),
+            operating_hours VARCHAR(200),
+            availability VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_mitigation_resource
+                FOREIGN KEY (mitigation_id)
+                REFERENCES mitigation_plans(id)
+                ON DELETE CASCADE,
+            INDEX idx_resource_mitigation (mitigation_id),
+            INDEX idx_resource_type (resource_type)
+        ) ENGINE=InnoDB
+        """,
     ]
 
 
