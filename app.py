@@ -2439,7 +2439,7 @@ def get_decoy_breaches_summary() -> Dict[str, Any]:
             "total_affected_accounts": 0,
             "high_severity_count": 0,
             "medium_severity_count": 0,
-            "low_severity_count": 0,
+            "low_severity_count": 0,            git commit -m "First commit FYP OSINT breach monitor"
             "oldest_breach": "Unknown",
             "latest_breach": "Unknown",
         }
