@@ -72,6 +72,7 @@
                         <th>{{ t('risk_score') }}</th>
                         <th>{{ t('risk_level') }}</th>
                         <th>{{ t('checked_at') }}</th>
+                        <th>Forensic Tools</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -85,11 +86,19 @@
                         <td>{{ row.risk_score }}</td>
                         <td>{{ row.risk_level }}</td>
                         <td>{{ row.checked_at }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="/timeline/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-primary" title="View breach timeline">📅 Timeline</a>
+                                <a href="/darkweb/check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-danger" title="Check dark web">🌐 Dark Web</a>
+                                <a href="/analysis/data-types/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-warning" title="Data analysis">📊 Data</a>
+                                <a href="/analysis/hash-check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-info" title="Hash algorithm analysis">🔐 Hash</a>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">{{ t('no_logs_found') }}</td>
+                        <td colspan="8" class="text-center py-4 text-muted">{{ t('no_logs_found') }}</td>
                     </tr>
                 {% endif %}
                 </tbody>

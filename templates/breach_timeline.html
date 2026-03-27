@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Breach Timeline Analysis{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>📅 Breach Timeline Analysis</h1>
+            <p class="text-muted">Forensic timeline: when breaches occurred vs. when discovered</p>
+            <p><strong>Email:</strong> {{ investigation.email }}</p>
+        </div>
+        <a href="/history" class="btn btn-secondary">← Back to History</a>
+    </div>
+
+    <!-- Timeline Interactive Visualization -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>🗓️ Timeline View</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="timelineCanvas" height="300"></canvas>
+        </div>
+    </div>
+
+    <!-- Detailed Breach Timeline Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5>📊 Detailed Timeline Data</h5>
+        </div>
+        <div class="card-body">
+            {% if timeline %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr class="table-dark">
+                            <th>Breach Name</th>
+                            <th>Occurrence Date</th>
+                            <th>Discovery Date</th>
+                            <th>Days to Discover</th>
+                            <th>Status</th>
+                            <th>Risk Change</th>
+                            <th>Response Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in timeline %}
+                        <tr>
+                            <td>
+                                <strong>{{ event.breach_name }}</strong>
+                                {% if event.data_exposed %}
+                                <br><small class="text-muted">{{ event.data_exposed }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.breach_date %}
+                                    {{ event.breach_date.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    <span class="text-warning">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.discovery_date %}
+                                    {{ event.discovery_date.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    <span class="text-warning">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.time_to_discovery is defined %}
+                                    {{ event.time_to_discovery }} days
+                                    {% if event.discovery_status == 'Quick' %}
+                                        <span class="badge badge-success">Quick</span>
+                                    {% elif event.discovery_status == 'Delayed' %}
+                                        <span class="badge badge-danger">Delayed!</span>
+                                    {% elif event.discovery_status == 'Normal' %}
+                                        <span class="badge badge-info">Normal</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.status == 'confirmed' %}
+                                    <span class="badge badge-danger">Confirmed</span>
+                                {% elif event.status == 'rumored' %}
+                                    <span class="badge badge-warning">Rumored</span>
+                                {% elif event.status == 'patched' %}
+                                    <span class="badge badge-success">Patched</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ event.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.current_risk_score and event.initial_risk_score %}
+                                    <strong>{{ event.initial_risk_score }}</strong> → <strong>{{ event.current_risk_score }}</strong>
+                                    {% if event.current_risk_score > event.initial_risk_score %}
+                                        <span class="text-danger">📈</span>
+                                    {% elif event.current_risk_score < event.initial_risk_score %}
+                                        <span class="text-success">📉</span>
+                                    {% else %}
+                                        <span class="text-muted">→</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if event.crackability %}
+                                    <small>{{ event.crackability }}</small>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Forensic Analysis Summary -->
+            <div class="alert alert-info mt-4">
+                <h6>🔍 Forensic Timeline Insights:</h6>
+                <ul>
+                    <li><strong>Total Breaches:</strong> {{ timeline|length }}</li>
+                    <li><strong>Average Discovery Time:</strong> 
+                        {% set total_days = timeline|map(attribute='time_to_discovery')|list|sum %}
+                        {% if total_days %}
+                            {{ (total_days / timeline|length)|int }} days
+                        {% else %}
+                            Unknown
+                        {% endif %}
+                    </li>
+                    <li><strong>Confirmed:</strong> {{ timeline|selectattr('status', 'equalto', 'confirmed')|list|length }}</li>
+                    <li><strong>Current Risk Assessment:</strong> 
+                        {% if investigation.risk_level == 'HIGH' %}
+                            <span class="badge badge-danger">HIGH RISK</span> - Multiple confirmed breaches detected
+                        {% elif investigation.risk_level == 'MEDIUM' %}
+                            <span class="badge badge-warning">MEDIUM RISK</span> - Some exposure confirmed
+                        {% else %}
+                            <span class="badge badge-success">LOW RISK</span> - Minimal exposure
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+
+            {% else %}
+            <p class="text-muted align-center">No timeline events recorded yet for this investigation.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="card mt-4">
+        <div class="card-header bg-primary">
+            <h5 class="text-white">📋 Recommended Next Steps</h5>
+        </div>
+        <div class="card-body">
+            <ol>
+                <li><strong>Analyze Data Types</strong> - Check what specific data was exposed <a href="/analysis/data-types/{{ investigation.id }}" class="btn btn-sm btn-info">Analyze</a></li>
+                <li><strong>Hash Vulnerability Check</strong> - See password crackability <a href="/analysis/hash-check/{{ investigation.id }}" class="btn btn-sm btn-info">Check</a></li>
+                <li><strong>Dark Web Monitoring</strong> - Detect credentials on dark web <a href="/darkweb/check/{{ investigation.id }}" class="btn btn-sm btn-info">Scan</a></li>
+                <li><strong>Mitigation Planning</strong> - Get action plan for each breach <a href="/mitigation" class="btn btn-sm btn-warning">Mitigate</a></li>
+            </ol>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Timeline visualization using Chart.js
+const timelineData = {{ timeline|tojson }};
+
+if (timelineData.length > 0) {
+    const ctx = document.getElementById('timelineCanvas').getContext('2d');
+    
+    const labels = timelineData.map(e => e.breach_name);
+    const breachDates = timelineData.map(e => new Date(e.breach_date).getTime());
+    const discoveryDates = timelineData.map(e => e.discovery_date ? new Date(e.discovery_date).getTime() : null);
+    
+    new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                {
+                    label: 'Breach Occurrence',
+                    data: timelineData.map((e, i) => ({
+                        x: new Date(e.breach_date).getTime(),
+                        y: i,
+                        label: e.breach_name
+                    })),
+                    pointRadius: 8,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 0.8)',
+                    pointBorderColor: '#ff0000',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Discovery Date',
+                    data: timelineData.filter(e => e.discovery_date).map((e, i) => ({
+                        x: new Date(e.discovery_date).getTime(),
+                        y: i,
+                        label: e.breach_name
+                    })),
+                    pointRadius: 8,
+                    pointBackgroundColor: 'rgba(54, 162, 235, 0.8)',
+                    pointBorderColor: '#0066ff',
+                    pointBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return new Date(context.raw.x).toLocaleDateString();
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Date' }
+                },
+                y: {
+                    title: { display: true, text: 'Breach' }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

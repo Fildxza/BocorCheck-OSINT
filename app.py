@@ -25,6 +25,32 @@ from mitigation import (
     calculate_total_time,
 )
 
+from monitoring import (
+    create_monitoring_subscription,
+    get_user_monitoring,
+    get_breach_timeline,
+    get_timeline_statistics,
+    update_monitoring_check,
+)
+
+from darkweb_checker import (
+    check_darkweb_mock,
+    record_darkweb_finding,
+    get_darkweb_findings,
+    get_investigation_darkweb_findings,
+    calculate_darkweb_risk_score,
+)
+
+from data_analyzer import (
+    analyze_breach_datatypes,
+    detect_hash_algorithm,
+    calculate_crack_risk,
+    generate_forensic_report,
+    store_enhanced_breach_details,
+    get_data_type_risk_reference,
+    get_hash_algorithm_reference,
+)
+
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-for-production")
@@ -1315,6 +1341,10 @@ def index() -> str:
     - GET: show empty search form.
     - POST: submit email, query HIBP, compute risk and recommendations.
     """
+    # Load decoy bank breaches data for dashboard display
+    decoy_bank_breaches = get_decoy_bank_breaches(limit=8)
+    decoy_breaches_summary = get_decoy_breaches_summary()
+    
     context = {
         "email": "",
         "phone_number": "",
@@ -1346,6 +1376,8 @@ def index() -> str:
         "mitigation_data": [],
         "malaysian_resources": [],
         "estimated_mitigation_time": "0 minutes",
+        "decoy_bank_breaches": decoy_bank_breaches,
+        "decoy_breaches_summary": decoy_breaches_summary,
     }
 
     if request.method == "POST":
@@ -1918,6 +1950,519 @@ def export_history_csv():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=investigation_history.csv"},
     )
+
+
+# ============================================================================
+# FEATURE 1: Real-Time Monitoring + Breach Timeline Routes
+# ============================================================================
+
+@app.route("/monitoring", methods=["GET"])
+@login_required
+def monitoring_dashboard():
+    """
+    Monitoring dashboard - View active monitoring and timeline
+    """
+    user_id = session.get('user_id')
+    
+    # Get user's active monitoring
+    monitoring_list = get_user_monitoring(user_id)
+    
+    # Get timeline statistics
+    timeline_stats = get_timeline_statistics(user_id)
+    
+    return render_template(
+        "monitoring_dashboard.html",
+        monitoring_list=monitoring_list,
+        timeline_stats=timeline_stats,
+        tr=tr
+    )
+
+
+@app.route("/monitoring/subscribe", methods=["POST"])
+@login_required
+def subscribe_monitoring():
+    """
+    Subscribe email/phone to automatic monitoring
+    """
+    user_id = session.get('user_id')
+    
+    email = request.form.get('email', '').strip()
+    phone = request.form.get('phone', '').strip()
+    frequency = request.form.get('frequency', 'weekly')
+    
+    if not email:
+        return {"success": False, "message": "Email is required"}, 400
+    
+    success, message = create_monitoring_subscription(
+        user_id=user_id,
+        email=email,
+        phone_number=phone or None,
+        check_frequency=frequency
+    )
+    
+    if success:
+        return {"success": True, "message": message}, 200
+    else:
+        return {"success": False, "message": message}, 400
+
+
+@app.route("/timeline/<int:investigation_id>", methods=["GET"])
+@login_required
+def view_breach_timeline(investigation_id: int):
+    """
+    View breach timeline for an investigation
+    Shows when breaches occurred vs when discovered
+    """
+    user_id = session.get('user_id')
+    
+    # Verify ownership
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT * FROM investigation_logs WHERE id = %s AND user_id = %s",
+            (investigation_id, user_id)
+        )
+        investigation = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not investigation:
+            return "Not found", 404
+    except MySQLError:
+        return "Database error", 500
+    
+    # Get timeline
+    timeline = get_breach_timeline(investigation_id)
+    
+    return render_template(
+        "breach_timeline.html",
+        investigation=investigation,
+        timeline=timeline,
+        tr=tr
+    )
+
+
+# ============================================================================
+# FEATURE 2: Dark Web Monitoring Routes
+# ============================================================================
+
+@app.route("/darkweb/check/<int:investigation_id>", methods=["GET", "POST"])
+@login_required
+def darkweb_check(investigation_id: int):
+    """
+    Check if email from investigation appears on dark web
+    """
+    user_id = session.get('user_id')
+    
+    # Verify ownership
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT email FROM investigation_logs WHERE id = %s AND user_id = %s",
+            (investigation_id, user_id)
+        )
+        investigation = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not investigation:
+            return "Not found", 404
+    except MySQLError:
+        return "Database error", 500
+    
+    if request.method == "POST":
+        email = investigation['email']
+        
+        # Check dark web (mock for now)
+        findings = check_darkweb_mock(email)
+        
+        # Record findings
+        if findings:
+            for finding in findings:
+                record_darkweb_finding(
+                    investigation_id=investigation_id,
+                    user_id=user_id,
+                    query_term=email,
+                    platform=finding['platform'],
+                    snippet=finding['snippet'],
+                    severity=finding['severity'],
+                    risk_reason=finding.get('risk_reason')
+                )
+        
+        return render_template(
+            "darkweb_results.html",
+            email=email,
+            findings=findings,
+            has_findings=len(findings) > 0,
+            tr=tr
+        )
+    
+    # GET - Show findings
+    findings = get_investigation_darkweb_findings(investigation_id)
+    return render_template(
+        "darkweb_dashboard.html",
+        email=investigation['email'],
+        findings=findings,
+        tr=tr
+    )
+
+
+@app.route("/darkweb/findings", methods=["GET"])
+@login_required
+def darkweb_user_findings():
+    """
+    View all dark web findings for user
+    """
+    user_id = session.get('user_id')
+    
+    findings = get_darkweb_findings(user_id, unresolved_only=False)
+    risk_summary = calculate_darkweb_risk_score(user_id)
+    
+    return render_template(
+        "darkweb_findings_summary.html",
+        findings=findings,
+        risk_summary=risk_summary,
+        tr=tr
+    )
+
+
+# ============================================================================
+# FEATURE 3: Data Type Analysis + Hash Algorithm Routes
+# ============================================================================
+
+@app.route("/analysis/data-types/<int:investigation_id>", methods=["GET"])
+@login_required
+def analyze_data_types(investigation_id: int):
+    """
+    Analyze what data types were exposed in breaches
+    """
+    user_id = session.get('user_id')
+    
+    # Get investigation
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT il.id, il.email, il.risk_score, br.breach_name, br.data_exposed
+            FROM investigation_logs il
+            LEFT JOIN breach_results br ON il.id = br.investigation_id
+            WHERE il.id = %s AND il.user_id = %s
+        """, (investigation_id, user_id))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        if not results:
+            return "Not found", 404
+        
+        investigation = results[0]
+        breaches = results
+    except MySQLError:
+        return "Database error", 500
+    
+    # Analyze data types for each breach
+    analysis_results = []
+    for breach in breaches:
+        if breach['data_exposed']:
+            analysis = analyze_breach_datatypes(
+                investigation_id,
+                breach['breach_name'],
+                breach['data_exposed']
+            )
+            analysis_results.append({
+                'breach_name': breach['breach_name'],
+                'analysis': analysis
+            })
+    
+    return render_template(
+        "data_type_analysis.html",
+        investigation=investigation,
+        analysis_results=analysis_results,
+        tr=tr
+    )
+
+
+@app.route("/analysis/hash-check/<int:investigation_id>", methods=["GET"])
+@login_required
+def hash_algorithm_check(investigation_id: int):
+    """
+    Analyze hash algorithms and password crackability
+    """
+    user_id = session.get('user_id')
+    
+    # Get investigation with breaches
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT il.id, il.email, il.risk_score, br.breach_name, br.data_exposed
+            FROM investigation_logs il
+            LEFT JOIN breach_results br ON il.id = br.investigation_id
+            WHERE il.id = %s AND il.user_id = %s
+        """, (investigation_id, user_id))
+        
+        results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        if not results:
+            return "Not found", 404
+        
+        investigation = results[0]
+        breaches = results
+    except MySQLError:
+        return "Database error", 500
+    
+    # Analyze hash algorithms
+    forensic_reports = []
+    for breach in breaches:
+        if breach['data_exposed']:
+            report = generate_forensic_report(
+                investigation_id,
+                breach['breach_name'],
+                breach['data_exposed']
+            )
+            forensic_reports.append(report)
+            
+            # Store in database
+            store_enhanced_breach_details(
+                investigation_id,
+                breach['breach_name'],
+                report['data_types'],
+                report['hash_algorithm'],
+                report.get('hash_is_salted'),
+                report.get('password_crack_risk', {}).get('crackability_level')
+            )
+    
+    # Get reference data
+    hash_reference = get_hash_algorithm_reference()
+    datatype_reference = get_data_type_risk_reference()
+    
+    return render_template(
+        "hash_analysis.html",
+        investigation=investigation,
+        forensic_reports=forensic_reports,
+        hash_reference=hash_reference,
+        datatype_reference=datatype_reference,
+        tr=tr
+    )
+
+
+@app.route("/api/risk-matrix", methods=["GET"])
+def api_risk_matrix():
+    """
+    API endpoint for data type risk matrix
+    """
+    matrix = get_data_type_risk_reference()
+    return {
+        "success": True,
+        "data": matrix
+    }, 200
+
+
+@app.route("/api/hash-algorithms", methods=["GET"])
+def api_hash_algorithms():
+    """
+    API endpoint for hash algorithm reference
+    """
+    algorithms = get_hash_algorithm_reference()
+    return {
+        "success": True,
+        "data": algorithms
+    }, 200
+
+
+@app.route('/api/heatmap')
+def heatmap_data():
+    # Query dari geographic_heatmap_data
+    # Return JSON [{lat: ..., lng: ..., value: ...}, ...]
+    pass
+
+
+# ============================================================================
+# DECOY BANK BREACHES FUNCTIONS
+# All data is FICTIONAL for academic demonstration only
+# ============================================================================
+
+def get_decoy_bank_breaches(limit: int = 10) -> List[Dict[str, Any]]:
+    """
+    Fetch decoy bank breach data from MySQL database.
+    Returns list of bank breaches with risk indicators.
+    
+    Args:
+        limit: Maximum number of records to fetch (default: 10)
+        
+    Returns:
+        List of decoy breaches with all relevant details
+    """
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        
+        query = """
+        SELECT 
+            breach_id,
+            institution_name,
+            institution_type,
+            country,
+            breach_date,
+            breach_type,
+            severity_level,
+            affected_accounts,
+            exposed_data_types,
+            breach_description,
+            data_sample_masked
+        FROM decoy_bank_breaches
+        WHERE is_active = TRUE
+        ORDER BY breach_date DESC, severity_level DESC
+        LIMIT %s
+        """
+        
+        cursor.execute(query, (limit,))
+        results = cursor.fetchall()
+        cursor.close()
+        db.close()
+        
+        # Transform results for template consumption
+        breaches = []
+        for breach in results:
+            breaches.append({
+                "breach_id": breach.get("breach_id", ""),
+                "institution": breach.get("institution_name", "Unknown"),
+                "type": breach.get("institution_type", "Bank"),
+                "country": breach.get("country", "Malaysia"),
+                "date": breach.get("breach_date", "").isoformat() if breach.get("breach_date") else "Unknown",
+                "breach_type": breach.get("breach_type", "Unknown"),
+                "severity": breach.get("severity_level", "Medium"),
+                "affected": breach.get("affected_accounts", 0),
+                "data_exposed": breach.get("exposed_data_types", ""),
+                "description": breach.get("breach_description", ""),
+                "sample": breach.get("data_sample_masked", "Not Available"),
+            })
+        
+        return breaches
+        
+    except MySQLError as e:
+        # Return empty list if DB connection fails
+        return []
+
+
+def get_decoy_breaches_by_severity() -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Fetch decoy bank breaches grouped by severity level for dashboard display.
+    Returns a dictionary with severity levels as keys and breach lists as values.
+    """
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        
+        query = """
+        SELECT 
+            severity_level,
+            breach_id,
+            institution_name,
+            breach_date,
+            affected_accounts,
+            data_sample_masked
+        FROM decoy_bank_breaches
+        WHERE is_active = TRUE
+        ORDER BY breach_date DESC
+        """
+        
+        cursor.execute(query)
+        results = cursor.fetchall()
+        cursor.close()
+        db.close()
+        
+        # Group by severity
+        breaches_by_severity = {"High": [], "Medium": [], "Low": []}
+        
+        for breach in results:
+            severity = breach.get("severity_level", "Medium")
+            breaches_by_severity.setdefault(severity, []).append({
+                "breach_id": breach.get("breach_id", ""),
+                "institution": breach.get("institution_name", "Unknown"),
+                "date": breach.get("breach_date", "").isoformat() if breach.get("breach_date") else "Unknown",
+                "affected": breach.get("affected_accounts", 0),
+                "sample": breach.get("data_sample_masked", ""),
+            })
+        
+        return breaches_by_severity
+        
+    except MySQLError:
+        return {"High": [], "Medium": [], "Low": []}
+
+
+def get_decoy_breaches_summary() -> Dict[str, Any]:
+    """
+    Get summary statistics of decoy bank breaches for dashboard cards.
+    """
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        
+        # Get total count and affected accounts
+        query = """
+        SELECT 
+            COUNT(*) as total_breaches,
+            SUM(affected_accounts) as total_affected,
+            COUNT(CASE WHEN severity_level = 'High' THEN 1 END) as high_severity,
+            COUNT(CASE WHEN severity_level = 'Medium' THEN 1 END) as medium_severity,
+            COUNT(CASE WHEN severity_level = 'Low' THEN 1 END) as low_severity,
+            MIN(breach_date) as oldest_breach,
+            MAX(breach_date) as latest_breach
+        FROM decoy_bank_breaches
+        WHERE is_active = TRUE
+        """
+        
+        cursor.execute(query)
+        result = cursor.fetchone()
+        cursor.close()
+        db.close()
+        
+        return {
+            "total_breaches": result.get("total_breaches", 0) if result else 0,
+            "total_affected_accounts": result.get("total_affected", 0) if result else 0,
+            "high_severity_count": result.get("high_severity", 0) if result else 0,
+            "medium_severity_count": result.get("medium_severity", 0) if result else 0,
+            "low_severity_count": result.get("low_severity", 0) if result else 0,
+            "oldest_breach": str(result.get("oldest_breach", "")) if result and result.get("oldest_breach") else "Unknown",
+            "latest_breach": str(result.get("latest_breach", "")) if result and result.get("latest_breach") else "Unknown",
+        }
+        
+    except MySQLError:
+        return {
+            "total_breaches": 0,
+            "total_affected_accounts": 0,
+            "high_severity_count": 0,
+            "medium_severity_count": 0,
+            "low_severity_count": 0,
+            "oldest_breach": "Unknown",
+            "latest_breach": "Unknown",
+        }
+
+
+@app.route("/decoy-breaches", methods=["GET"])
+def get_decoy_breaches_api() -> tuple:
+    """
+    API endpoint to fetch decoy bank breach data in JSON format.
+    Useful for AJAX/dynamic loading on the dashboard.
+    """
+    limit = request.args.get("limit", 15, type=int)
+    limit = min(limit, 100)  # Cap at 100 to prevent abuse
+    
+    breaches = get_decoy_bank_breaches(limit=limit)
+    summary = get_decoy_breaches_summary()
+    
+    return {
+        "success": True,
+        "summary": summary,
+        "breaches": breaches,
+        "note": "All data is FICTIONAL for academic demonstration only"
+    }, 200
 
 
 if __name__ == "__main__":

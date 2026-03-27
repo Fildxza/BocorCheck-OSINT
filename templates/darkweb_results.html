@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Dark Web Scan Results{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>🕵️ Dark Web Scan Results</h1>
+    <p><strong>Email Scanned:</strong> {{ email }}</p>
+
+    {% if has_findings %}
+    <div class="alert alert-danger">
+        <h4>🔴 Findings Detected!</h4>
+        <p>Your credentials appear to be exposed on dark web sources.</p>
+    </div>
+
+    <div class="list-group">
+        {% for finding in findings %}
+        <div class="list-group-item">
+            <h5 class="mb-1">{{ finding.platform }}</h5>
+            <p class="mb-1">{{ finding.snippet }}</p>
+            <small class="text-muted">Severity: <span class="badge badge-{{ 'danger' if finding.severity == 'CRITICAL' else 'warning' }}">{{ finding.severity }}</span></small>
+            {% if finding.risk_reason %}
+            <p class="mt-2"><strong>Risk:</strong> {{ finding.risk_reason }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-4">
+        <h5>⚡ Urgent Actions:</h5>
+        <ol>
+            <li>Change your password immediately on all accounts</li>
+            <li>Enable 2FA (Two-Factor Authentication)</li>
+            <li>Monitor your bank/credit accounts for fraud</li>
+            <li>Consider credit freeze with major bureaus</li>
+        </ol>
+    </div>
+
+    {% else %}
+    <div class="alert alert-success">
+        <h4>✅ No Findings</h4>
+        <p>Good news! Your credentials don't appear on known dark web sources.</p>
+    </div>
+    {% endif %}
+
+    <a href="/darkweb/findings" class="btn btn-primary mt-4">View All Dark Web Findings</a>
+</div>
+{% endblock %}

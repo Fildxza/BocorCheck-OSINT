@@ -32,3 +32,20 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Starting app at http://127.0.0.1:5000"
 & $py app.py
+
+python -c "
+import mysql.connector
+conn = mysql.connector.connect(
+    host='127.0.0.1',
+    user='fyp_user',
+    password='Admin123!',
+    database='fyp_osint'
+)
+cursor = conn.cursor()
+with open('DATABASE_UPDATES_3FEATURES.sql') as f:
+    for statement in f.read().split(';'):
+        if statement.strip():
+            cursor.execute(statement)
+conn.commit()
+print('Database updated successfully!')
+"

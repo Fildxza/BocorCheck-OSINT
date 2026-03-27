@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Dark Web Monitoring{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1>🕵️ Dark Web Monitoring</h1>
+            <p class="text-muted">Check if credentials appear on dark web, pastebin, or exposed data sites</p>
+            <p><strong>Email Checked:</strong> {{ email }}</p>
+        </div>
+        <form method="POST">
+            <button type="submit" class="btn btn-danger">
+                🔍 Scan Dark Web Now
+            </button>
+        </form>
+    </div>
+
+    <!-- Risk Assessment Card -->
+    <div class="card mb-4 border-danger">
+        <div class="card-header bg-danger text-white">
+            <h5>⚠️ Dark Web Exposure Risk</h5>
+        </div>
+        <div class="card-body">
+            {% if findings|length > 0 %}
+                <h4 class="text-danger">🔴 FINDINGS DETECTED</h4>
+                <p>Your credentials appear to be exposed on dark web or public paste sites.</p>
+                <div class="alert alert-danger">
+                    <strong>{{ findings|length }} finding(s)</strong> found. See details below.
+                </div>
+            {% else %}
+                <h4 class="text-success">✅ No Findings</h4>
+                <p>Good news! Your credentials don't appear on publicly known dark web sources.</p>
+                <p class="text-muted"><small>Note: This scan checks common known sources. For comprehensive monitoring, consider premium dark web monitoring services.</small></p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Findings List -->
+    {% if findings|length > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>📋 Detected Findings</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                {% for finding in findings %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">
+                                🌐 {{ finding.platform }}
+                                <span class="badge {% if finding.severity == 'CRITICAL' %}badge-danger{% elif finding.severity == 'HIGH' %}badge-warning{% else %}badge-info{% endif %}">
+                                    {{ finding.severity }}
+                                </span>
+                            </h6>
+                            <p class="mb-2"><strong>{{ finding.snippet }}</strong></p>
+                            {% if finding.risk_reason %}
+                            <p class="text-muted mb-0">
+                                <strong>Why this is concerning:</strong> {{ finding.risk_reason }}
+                            </p>
+                            {% endif %}
+                        </div>
+                        <span class="badge badge-danger">EXPOSED</span>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">Found: {{ finding.found_date }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Analysis Information -->
+    <div class="card">
+        <div class="card-header">
+            <h5>📚 Understanding Dark Web Exposure</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>🔴 Critical Indicators:</h6>
+                    <ul>
+                        <li>Email + Password combo found</li>
+                        <li>Credentials actively being sold</li>
+                        <li>Credentials in "combo lists" used for mass attacks</li>
+                        <li>Personal data being targeted for SIM swap</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>✅ What To Do:</h6>
+                    <ol>
+                        <li><strong>Change Password</strong> immediately on all platforms</li>
+                        <li><strong>Enable 2FA</strong> on important accounts</li>
+                        <li><strong>Monitor Bank Accounts</strong> for fraudulent activity</li>
+                        <li><strong>Check Credit Reports</strong> for identity theft</li>
+                        <li><strong>Contact Authorities</strong> if financial loss occurred</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison: Breach vs Dark Web vs Public -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5>🔍 Data Exposure Levels Explained</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Exposure Type</th>
+                        <th>Location</th>
+                        <th>Risk Level</th>
+                        <th>Accessibility</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Data Breach</strong></td>
+                        <td>Company Database (stolen)</td>
+                        <td><span class="badge badge-warning">MEDIUM-HIGH</span></td>
+                        <td>Limited to attackers with access</td>
+                    </tr>
+                    <tr class="table-danger">
+                        <td><strong>Dark Web 🕵️</strong></td>
+                        <td>Dark Web Markets / Forums</td>
+                        <td><span class="badge badge-danger">CRITICAL</span></td>
+                        <td>Any criminal can buy/access</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Public Paste Sites</strong></td>
+                        <td>Pastebin, GitHub, Public Forums</td>
+                        <td><span class="badge badge-danger">CRITICAL</span></td>
+                        <td>Anyone with Google</td>
+                    </tr>
+                    <tr class="table-success">
+                        <td><strong>Safe (Encrypted)</strong></td>
+                        <td>bcrypt/Argon2 Hashed PWD</td>
+                        <td><span class="badge badge-success">LOW</span></td>
+                        <td>Would take years to crack</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- More Information -->
+    <div class="alert alert-info mt-4">
+        <h6>ℹ️ About this scan</h6>
+        <p>This scan checks if your email/credentials appear on:
+            <ul>
+                <li>Pastebin and public paste services</li>
+                <li>Known dark web databases (HaveIBeenPwned integration)</li>
+                <li>Combo lists and credential collections</li>
+                <li>Public git commits and repositories</li>
+            </ul>
+        </p>
+        <p class="text-muted"><small><strong>Note:</strong> This is a forensic-level analysis. For continuous dark web monitoring, consider subscribing to professional dark web monitoring services like Digital Shadows, Flashpoint, or Recorded Future.</small></p>
+    </div>
+</div>
+
+<script>
+// Auto-refresh scan status
+setTimeout(() => {
+    location.reload();
+}, 5000);
+</script>
+{% endblock %}

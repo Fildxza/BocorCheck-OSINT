@@ -8,20 +8,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Leaflet CSS for Interactive Map -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css">
+    <!-- ECharts for Advanced Heatmap -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
     <style>
         :root {
-            --bg-main: #f3f7fb;
-            --bg-accent: #dbeafe;
-            --panel: #ffffff;
-            --ink: #0f172a;
-            --muted: #475569;
-            --primary: #0b57d0;
-            --primary-soft: #e8f0ff;
-            --danger-soft: #ffe8ea;
-            --warning-soft: #fff3e6;
-            --success-soft: #e8f8ef;
-            --border: #dbe4ee;
-            --shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+            --bg-main: #0d1117;
+            --bg-accent: #161b22;
+            --panel: #0d1117;
+            --ink: #c9d1d9;
+            --muted: #8b949e;
+            --primary: #58a6ff;
+            --primary-soft: #1f6feb;
+            --danger-soft: #da3633;
+            --warning-soft: #d29922;
+            --success-soft: #238636;
+            --border: #30363d;
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
         }
 
         * {
@@ -33,26 +39,24 @@
             min-height: 100vh;
             font-family: "DM Sans", sans-serif;
             color: var(--ink);
-            background:
-                radial-gradient(circle at 14% 14%, rgba(11, 87, 208, 0.14) 0, rgba(11, 87, 208, 0) 36%),
-                radial-gradient(circle at 85% 10%, rgba(16, 185, 129, 0.16) 0, rgba(16, 185, 129, 0) 28%),
-                linear-gradient(165deg, var(--bg-main) 0%, #eef4fb 52%, var(--bg-accent) 100%);
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
         }
 
         .shell {
-            max-width: 1080px;
+            max-width: 1400px;
             margin: 2.5rem auto;
             padding: 0 1rem;
             animation: revealUp 0.55s ease-out;
         }
 
         .hero {
-            background: linear-gradient(120deg, #0b57d0 0%, #1d4ed8 50%, #0f4ab3 100%);
+            background: linear-gradient(120deg, #1f6feb 0%, #0d47a1 50%, #1a237e 100%);
             border-radius: 1.2rem;
             padding: 1.4rem 1.5rem;
-            color: #f8fbff;
+            color: #f0f6fc;
             box-shadow: var(--shadow);
             margin-bottom: 1.1rem;
+            border-left: 4px solid #58a6ff;
         }
 
         .hero h1 {
@@ -64,7 +68,7 @@
 
         .hero p {
             margin-bottom: 0;
-            color: rgba(248, 251, 255, 0.9);
+            color: rgba(240, 246, 252, 0.85);
         }
 
         .panel {
@@ -82,7 +86,7 @@
         .section-card {
             border: 1px solid var(--border);
             border-radius: 0.95rem;
-            background: #ffffff;
+            background: #161b22;
             padding: 1rem;
             margin-top: 1rem;
             animation: fadeIn 0.35s ease-out;
@@ -90,442 +94,456 @@
 
         .form-label {
             font-weight: 600;
-            color: #1e293b;
+            color: #c9d1d9;
             margin-bottom: 0.45rem;
         }
 
         .form-control {
             border-radius: 0.8rem;
-            border: 1px solid #c8d6e6;
+            border: 1px solid #30363d;
             padding: 0.72rem 0.95rem;
+            background: #0d1117;
+            color: #c9d1d9;
         }
 
         .form-control:focus {
-            border-color: #7fb2ff;
-            box-shadow: 0 0 0 0.22rem rgba(11, 87, 208, 0.15);
+            background: #0d1117;
+            color: #c9d1d9;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.25);
         }
 
-        .btn-main {
-            border: 0;
+        .form-select {
+            background: #0d1117 url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%238b949e' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") no-repeat right 0.75rem center/16px 16px;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 0.72rem 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1f6feb 0%, #1845d5 100%);
+            border: none;
             border-radius: 0.8rem;
-            padding: 0.72rem 1rem;
-            background: linear-gradient(120deg, #0b57d0 0%, #114dc0 100%);
+            padding: 0.72rem 1.5rem;
             font-weight: 600;
-            color: #ffffff;
+            transition: all 0.3s ease;
         }
 
-        .btn-main:hover {
-            background: linear-gradient(120deg, #0a4fbe 0%, #0f43a8 100%);
-            color: #ffffff;
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0d47a1 0%, #1a237e 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(31, 110, 251, 0.3);
         }
 
-        .mock-banner {
-            border: 1px dashed #86aef5;
-            background: #eff5ff;
-            border-radius: 0.95rem;
-            color: #1e3a8a;
-            padding: 0.95rem 1rem;
-            margin-bottom: 1rem;
+        .btn-danger {
+            background: #da3633;
+            border: none;
         }
 
-        .sample-chip {
-            display: inline-block;
-            margin: 0.3rem 0.35rem 0 0;
-            padding: 0.35rem 0.62rem;
-            border-radius: 999px;
-            background: #dce9ff;
-            color: #123d8d;
-            font-size: 0.85rem;
-            font-weight: 500;
+        .btn-danger:hover {
+            background: #b82e2b;
         }
 
         .status-box {
-            border-radius: 0.9rem;
-            padding: 0.88rem 1rem;
-            margin-top: 1rem;
-            border: 1px solid transparent;
-        }
-
-        .status-error {
-            background: #fff1f2;
-            color: #9f1239;
-            border-color: #fecdd3;
+            border-radius: 0.95rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
         }
 
         .status-safe {
-            background: #ecfdf3;
-            color: #166534;
-            border-color: #bbf7d0;
+            background: #114099;
+            color: #58a6ff;
+            border-left: 4px solid #58a6ff;
         }
 
-        .risk-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            border-radius: 999px;
-            padding: 0.4rem 0.72rem;
-            font-weight: 700;
-            font-size: 0.82rem;
-            border: 1px solid transparent;
+        .status-error {
+            background: #7b2d2d;
+            color: #ff7f7f;
+            border-left: 4px solid #ff7f7f;
         }
 
-        .risk-high { background: var(--danger-soft); color: #b42318; border-color: #f7b2b7; }
-        .risk-medium { background: var(--warning-soft); color: #b45309; border-color: #f8d09f; }
-        .risk-low { background: var(--success-soft); color: #166534; border-color: #9fe6bb; }
-
-        .table-wrap {
-            border: 1px solid var(--border);
-            border-radius: 0.9rem;
-            overflow: hidden;
-        }
-
-        .table {
-            margin-bottom: 0;
-        }
-
-        .table thead th {
-            background: #eff4fb;
-            color: #1f2937;
-            border-bottom-color: #d7e3f2;
-            font-size: 0.86rem;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            font-weight: 700;
-        }
-
-        .tips-list {
-            margin: 0;
-            padding-left: 1.2rem;
-        }
-
-        .tips-list li {
-            margin-bottom: 0.45rem;
-            color: var(--muted);
+        .status-warning {
+            background: #704521;
+            color: #d29922;
+            border-left: 4px solid #d29922;
         }
 
         @keyframes revealUp {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
-        @media (max-width: 768px) {
-            .shell {
-                margin-top: 1.3rem;
-            }
+        .table {
+            color: var(--ink);
+            border-color: var(--border);
+        }
 
-            .hero,
-            .panel-body {
-                padding: 1rem;
-            }
+        .table thead th {
+            color: #58a6ff;
+            border-color: var(--border);
+            font-weight: 600;
+        }
+
+        .table tbody td {
+            border-color: var(--border);
+        }
+
+        .table tbody tr:hover {
+            background: #161b22;
+        }
+
+        .text-muted {
+            color: var(--muted) !important;
+        }
+
+        .alert {
+            border-radius: 0.95rem;
+        }
+
+        .alert-info {
+            background: rgba(31, 110, 251, 0.15);
+            border-color: #1f6feb;
+            color: #58a6ff;
+        }
+
+        .alert-warning {
+            background: rgba(210, 153, 34, 0.15);
+            border-color: #d29922;
+            color: #d29922;
+        }
+
+        /* Map Container Styling */
+        #breachHeatmapMap {
+            border-radius: 0.95rem;
+            box-shadow: 0 8px 32px rgba(88, 166, 255, 0.15);
+            border: 1px solid #30363d;
+            height: 500px;
+            width: 100%;
+            background: #0d1117;
+        }
+
+        /* ECharts Heatmap Container */
+        #breachHeatmapChart {
+            width: 100%;
+            height: 450px;
+            border-radius: 0.95rem;
+            background: #0d1117;
+        }
+
+        /* Dark Theme for Leaflet */
+        .leaflet-container {
+            background: #0d1117 !important;
+        }
+
+        .leaflet-tile {
+            filter: invert(0.93) hue-rotate(200deg) brightness(1.05) contrast(0.8);
+        }
+
+        /* Custom Marker Styles */
+        .leaflet-marker-icon {
+            filter: hue-rotate(0deg) brightness(1.1);
+        }
+
+        .breach-marker {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* Info Panel */
+        .heatmap-info {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 0.95rem;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .heatmap-stat {
+            text-align: center;
+        }
+
+        .heatmap-stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #58a6ff;
+        }
+
+        .heatmap-stat-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #161b22;
+            border-radius: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #30363d;
+        }
+
+        .btn-group-sm .btn {
+            border-radius: 0.5rem;
+            font-size: 0.85rem;
+            padding: 0.35rem 0.75rem;
         }
     </style>
 </head>
 <body>
-<div class="shell">
-<section class="hero">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-            <div>
-                <h1 class="h3">{{ t('dashboard_title') }}</h1>
-                <p>{{ t('dashboard_subtitle') }}</p>
-            </div>
-            {% if is_authenticated %}
-            <div class="text-end" style="color: #f8fbff; font-size: 0.95rem;">
-                <div class="small">Logged in as</div>
-                <div class="fw-semibold">{{ current_username }}</div>
-            </div>
-            {% endif %}
+    <div class="shell">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1><i class="fas fa-globe" style="margin-right: 0.5rem;"></i>{{ t('dashboard_title') }}</h1>
+            <p>{{ t('dashboard_subtitle') }}</p>
         </div>
-        <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
-            <form method="get" class="d-flex align-items-center gap-2 me-2">
-                <label class="small fw-semibold text-white-50" for="lang">{{ t('language') }}</label>
-                <select id="lang" name="lang" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="en" {% if current_lang == 'en' %}selected{% endif %}>{{ t('english') }}</option>
-                    <option value="ms" {% if current_lang == 'ms' %}selected{% endif %}>{{ t('malay') }}</option>
-                </select>
-            </form>
-            
-            {% if is_authenticated %}
-                <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
-                <a class="btn btn-sm btn-outline-light" href="{{ url_for('logout', lang=current_lang) }}">{{ t('logout') }}</a>
-            {% elif is_admin %}
-                <a class="btn btn-sm btn-light" href="{{ url_for('history', lang=current_lang) }}">{{ t('view_history') }}</a>
-                <a class="btn btn-sm btn-outline-light" href="{{ url_for('admin_logout', lang=current_lang) }}">{{ t('admin_logout') }}</a>
-            {% else %}
-                <a class="btn btn-sm btn-light" href="{{ url_for('login', lang=current_lang) }}">Sign In</a>
-                <a class="btn btn-sm btn-outline-light" href="{{ url_for('signup', lang=current_lang) }}">Create Account</a>
-            {% endif %}
-        </div>
-    </section>
 
-    <section class="panel">
-        <div class="panel-body">
-            {% if mock_mode %}
-            <div class="mock-banner">
-                <strong>{{ t('mock_mode_active') }}</strong>
-                <span class="text-danger fw-semibold">{{ t('mock_mode_notice') }}</span>
-                <div class="mt-2">
-                    {% for sample_email in mock_emails %}
-                    <span class="sample-chip">{{ sample_email }}</span>
-                    {% endfor %}
-                    {% for sample_phone in mock_phone_numbers %}
-                    <span class="sample-chip">{{ sample_phone }}</span>
-                    {% endfor %}
-                    {% for sample_bank in mock_bank_accounts %}
-                    <span class="sample-chip">{{ sample_bank }}</span>
-                    {% endfor %}
+        <div class="panel panel-body">
+            <!-- Navigation/Logout -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div>
+                    <a href="{{ url_for('index') }}" class="btn btn-sm btn-primary" style="margin-right: 0.5rem;">
+                        <i class="fas fa-home"></i> {{ t('dashboard') }}
+                    </a>
+                    <a href="{{ url_for('monitoring_dashboard') }}" class="btn btn-sm btn-primary" style="margin-right: 0.5rem;">
+                        <i class="fas fa-eye"></i> {{ t('monitoring') }}
+                    </a>
+                    <a href="{{ url_for('history') }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-history"></i> {{ t('history') }}
+                    </a>
+                </div>
+                <div>
+                    <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">
+                        <i class="fas fa-sign-out-alt"></i> {{ t('logout') }}
+                    </a>
                 </div>
             </div>
-            {% endif %}
 
-            <form method="post" class="row g-3 align-items-end">
-                <input type="hidden" name="lang" value="{{ current_lang }}">
-                <div class="col-md-4">
-                    <label for="email" class="form-label">{{ t('email_address') }}</label>
-                    <input
-                        type="email"
-                        class="form-control"
-                        id="email"
-                        name="email"
-                        placeholder="example@email.com"
-                        value="{{ email }}"
-                    >
-                </div>
-                <div class="col-md-3">
-                    <label for="phone_number" class="form-label">{{ t('phone_number') }}</label>
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="phone_number"
-                        name="phone_number"
-                        placeholder="+60123456789"
-                        value="{{ phone_number }}"
-                    >
-                </div>
-                <div class="col-md-3">
-                    <label for="bank_account" class="form-label">{{ t('bank_account_demo') }}</label>
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="bank_account"
-                        name="bank_account"
-                        placeholder="1234-5678-9012"
-                        value="{{ bank_account }}"
-                    >
-                </div>
-                <div class="col-md-2 d-grid gap-2">
-                    <button type="submit" name="submit_action" value="analyze" class="btn btn-main">{{ t('analyze') }}</button>
-                    <button type="submit" name="submit_action" value="telegram_test" class="btn btn-outline-primary">{{ t('send_telegram_test') }}</button>
-                </div>
+            <!-- Investigation Form -->
+            <form method="post" style="margin-bottom: 1.5rem;">
+                <h5 style="margin-bottom: 1rem; color: #58a6ff;">
+                    <i class="fas fa-search" style="margin-right: 0.5rem;"></i>{{ t('investigate_data') }}
+                </h5>
 
-                <div class="col-12">
-                    <label class="form-label d-block mb-2">{{ t('data_source_mode') }}</label>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="api_mode" id="mode_auto" value="auto" {% if api_mode == 'auto' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_auto">{{ t('auto') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="api_mode" id="mode_mock" value="mock" {% if api_mode == 'mock' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_mock">{{ t('mock') }}</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="api_mode" id="mode_live" value="live" {% if api_mode == 'live' %}checked{% endif %}>
-                            <label class="form-check-label" for="mode_live">{{ t('live_hibp') }}</label>
-                        </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">{{ t('email_label') }}</label>
+                        <input type="email" name="email" class="form-control" value="{{ email if email else '' }}">
                     </div>
-                    <div class="small text-muted mt-2">{{ t('effective_mode') }} <strong>{{ effective_data_mode }}</strong></div>
+                    <div class="col-md-4">
+                        <label class="form-label">{{ t('phone_label') }}</label>
+                        <input type="tel" name="phone_number" class="form-control" value="{{ phone_number if phone_number else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">{{ t('bank_label') }}</label>
+                        <input type="text" name="bank_account" class="form-control" value="{{ bank_account if bank_account else '' }}">
+                    </div>
                 </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">{{ t('data_mode') }}</label>
+                        <select name="data_mode" class="form-select">
+                            <option value="demo" {% if data_mode == 'demo' %}selected{% endif %}>{{ t('demo_data') }}</option>
+                            <option value="real" {% if data_mode == 'real' %}selected{% endif %}>{{ t('real_data') }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">{{ t('language') }}</label>
+                        <select name="lang" class="form-select" onchange="this.form.submit()">
+                            <option value="en" {% if current_lang == 'en' %}selected{% endif %}>English</option>
+                            <option value="ms" {% if current_lang == 'ms' %}selected{% endif %}>Bahasa Melayu</option>
+                            <option value="zh" {% if current_lang == 'zh' %}selected{% endif %}>中文</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search" style="margin-right: 0.5rem;"></i>{{ t('search_button') }}
+                </button>
+
+                {% if is_authenticated %}
+                <button type="submit" name="submit_action" value="telegram_test" class="btn btn-sm" style="background-color: #0088cc; color: white; margin-left: 0.5rem; border: none;">
+                    <i class="fab fa-telegram"></i> Test Telegram
+                </button>
+                {% endif %}
+
+                <div class="small text-muted mt-2">{{ t('effective_mode') }} <strong>{{ effective_data_mode }}</strong></div>
             </form>
 
+            <!-- Status Messages -->
             {% if error %}
             <div class="status-box status-error">
-                {{ error }}
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
             </div>
             {% endif %}
 
             {% if message %}
             <div class="status-box status-safe">
-                {{ message }}
+                <i class="fas fa-check-circle"></i> {{ message }}
             </div>
             {% endif %}
 
             {% if db_warning %}
             <div class="status-box status-error">
-                {{ db_warning }}
+                <i class="fas fa-database"></i> {{ db_warning }}
             </div>
             {% endif %}
 
             {% if telegram_status %}
             <div class="status-box {% if telegram_ok %}status-safe{% else %}status-error{% endif %}">
-                {{ telegram_status }}
+                <i class="fas fa-bell"></i> {{ telegram_status }}
             </div>
             {% endif %}
 
             {% if not is_telegram_configured and not telegram_status %}
-            <div class="status-box status-error">
-                {{ t('telegram_not_configured') }}
+            <div class="status-box status-warning">
+                <i class="fas fa-exclamation-triangle"></i> {{ t('telegram_not_configured') }}
             </div>
             {% endif %}
 
+            <!-- Investigation Results Section -->
             {% if email or phone_number or bank_account %}
             <div class="section-card">
-                <h2 class="h5 mb-3">{{ t('investigation_summary') }}</h2>
+                <h2 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>{{ t('investigation_summary') }}
+                </h2>
                 <div class="row g-3">
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">{{ t('email_checked') }}</div>
-                            <div class="fw-semibold mt-1">{{ email if email else '-' }}</div>
+                    <!-- Email Card -->
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #0d2d6f 0%, #1a3f7a 100%); border-color: #58a6ff; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #58a6ff; margin-bottom: 0.5rem;">
+                                <i class="fas fa-envelope"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">{{ t('email_checked') }}</div>
+                            <div class="fw-semibold mt-1 text-truncate" title="{{ email if email else '-' }}" style="color: #c9d1d9;">{{ email if email else '-' }}</div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">{{ t('phone_checked') }}</div>
-                            <div class="fw-semibold mt-1">{{ phone_number if phone_number else '-' }}</div>
+                    <!-- Phone Card -->
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #0d4d2d 0%, #1a6f3f 100%); border-color: #34d399; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #34d399; margin-bottom: 0.5rem;">
+                                <i class="fas fa-phone"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">{{ t('phone_checked') }}</div>
+                            <div class="fw-semibold mt-1 text-truncate" title="{{ phone_number if phone_number else '-' }}" style="color: #c9d1d9;">{{ phone_number if phone_number else '-' }}</div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">{{ t('bank_checked') }}</div>
-                            <div class="fw-semibold mt-1">{{ bank_account if bank_account else '-' }}</div>
+                    <!-- Bank Card -->
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #6f4d0d 0%, #7f6f1a 100%); border-color: #d29922; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #d29922; margin-bottom: 0.5rem;">
+                                <i class="fas fa-university"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">{{ t('bank_checked') }}</div>
+                            <div class="fw-semibold mt-1 text-truncate" title="{{ bank_account if bank_account else '-' }}" style="color: #c9d1d9;">{{ bank_account if bank_account else '-' }}</div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">{{ t('total_breaches') }}</div>
-                            <div class="fw-semibold mt-1">{{ total_breaches }}</div>
+                    <!-- Total Breaches Card -->
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #6f0d2d 0%, #7f1a3f 100%); border-color: #ff7f7f; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #ff7f7f; margin-bottom: 0.5rem;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">{{ t('total_breaches') }}</div>
+                            <div class="fw-semibold mt-1">
+                                <span style="font-size: 1.5rem; color: #ff7f7f;">{{ total_breaches }}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-3 border rounded-3 h-100">
-                            <div class="text-muted small">{{ t('risk_level') }}</div>
-                            <div class="fw-semibold mt-1">{{ risk_level if risk_level else 'LOW' }}</div>
+                    <!-- Risk Level Card -->
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #3f2d6f 0%, #4f3f7f 100%); border-color: #b19cd9; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #b19cd9; margin-bottom: 0.5rem;">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">{{ t('risk_level') }}</div>
+                            <div class="fw-semibold mt-1">
+                                {% if risk_level == 'HIGH' %}
+                                <span style="color: #ff7f7f; font-size: 1.1rem; font-weight: 700;">HIGH</span>
+                                {% elif risk_level == 'MEDIUM' %}
+                                <span style="color: #d29922; font-size: 1.1rem; font-weight: 700;">MEDIUM</span>
+                                {% else %}
+                                <span style="color: #34d399; font-size: 1.1rem; font-weight: 700;">LOW</span>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <h3 class="h6 mb-0">{{ t('risk_score') }}</h3>
-                        <span class="fw-semibold">{{ t('score_of', score=risk_score) }}</span>
-                    </div>
-
-                    {% set progress_class = 'bg-success' %}
-                    {% if risk_score > 60 %}
-                        {% set progress_class = 'bg-danger' %}
-                    {% elif risk_score > 30 %}
-                        {% set progress_class = 'bg-warning' %}
-                    {% endif %}
-
-                    <div class="progress" role="progressbar" aria-label="Risk Score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ risk_score }}" style="height: 20px;">
-                        <div class="progress-bar {{ progress_class }}" data-score="{{ risk_score }}">{{ risk_score }}%</div>
-                    </div>
-                </div>
-
-                {% if phone_analysis and phone_number %}
-                <div class="mt-4">
-                    <h3 class="h6 mb-2">{{ t('phone_osint_check') }}</h3>
-                    <div class="row g-3">
-                        <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">{{ t('valid_format') }}: <strong>{{ t('yes') if phone_analysis.is_valid else t('no') }}</strong></div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">{{ t('country_code') }}: <strong>{{ phone_analysis.country_code if phone_analysis.country_code else '-' }}</strong></div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">{{ t('region') }}: <strong>{{ phone_analysis.region if phone_analysis.region else '-' }}</strong></div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="p-2 border rounded-2 small">{{ t('phone_exposed') }}: <strong>{{ t('yes') if phone_exposed else t('no') }}</strong></div>
+                    <!-- Risk Score Card (if available) -->
+                    {% if risk_score > 0 %}
+                    <div class="col-md-6 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%); border-color: #58a6ff; border-width: 2px;">
+                            <div style="font-size: 1.4rem; color: #58a6ff; margin-bottom: 0.5rem;">
+                                <i class="fas fa-calculator"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600;">Risk Score</div>
+                            <div class="fw-semibold mt-1">
+                                <span style="font-size: 1.8rem; color: {% if risk_score >= 70 %}#ff7f7f{% elif risk_score >= 40 %}#d29922{% else %}#34d399{% endif %}; font-weight: 700;">{{ risk_score }}</span>
+                                <span style="color: #8b949e; font-size: 0.85rem;">/100</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            {% if bank_account %}
-            <div class="section-card">
-                <h2 class="h5 mb-3">{{ t('bank_exposure_demo') }}</h2>
-                {% if bank_analysis and bank_analysis.is_valid %}
-                <div class="row g-3">
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">{{ t('format_valid') }}: <strong>{{ t('yes') }}</strong></div>
-                    </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">{{ t('masked_account') }}: <strong>****{{ bank_analysis.last4 }}</strong></div>
-                    </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">{{ t('exposure_status') }}: <strong>{{ t('exposed_mock') if bank_analysis.is_exposed else t('no_exposure_mock') }}</strong></div>
-                    </div>
-                    <div class="col-md-6 col-lg-3">
-                        <div class="p-2 border rounded-2 small">{{ t('data_source') }}: <strong>{{ bank_analysis.source if bank_analysis.source else t('mock_dataset') }}</strong></div>
-                    </div>
-                </div>
-                {% if bank_analysis.note %}
-                <p class="small text-muted mt-3 mb-2">{{ bank_analysis.note }}</p>
-                {% endif %}
-                <div class="alert alert-warning mt-2 mb-0" role="alert">
-                    {{ bank_analysis.disclaimer }}
-                </div>
-                {% else %}
-                <div class="status-box status-error mt-0">
-                    {{ t('bank_invalid') }}
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            {% if has_breach %}
-            <div class="section-card">
-                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-                    <h2 class="h5 mb-0">{{ t('breach_incidents') }}</h2>
-                    {% if risk_level == 'HIGH' %}
-                        <span class="risk-pill risk-high">{{ t('overall_risk', level='High') }}</span>
-                    {% elif risk_level == 'MEDIUM' %}
-                        <span class="risk-pill risk-medium">{{ t('overall_risk', level='Medium') }}</span>
-                    {% else %}
-                        <span class="risk-pill risk-low">{{ t('overall_risk', level='Low') }}</span>
                     {% endif %}
                 </div>
+            </div>
 
-                <div class="table-wrap table-responsive">
-                    <table class="table align-middle">
-                        <thead>
+            <!-- Breach Results If Any -->
+            {% if breaches %}
+            <div class="section-card">
+                <h3 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-database" style="margin-right: 0.5rem;"></i>{{ t('breach_results') }} ({{ breaches | length }})
+                </h3>
+                <div class="table-responsive">
+                    <table class="table align-middle" style="margin-bottom: 0;">
+                        <thead style="border-bottom: 2px solid #58a6ff; background-color: rgba(88, 166, 255, 0.05);">
                         <tr>
-                            <th>{{ t('company_breach') }}</th>
-                            <th>{{ t('date') }}</th>
-                            <th>{{ t('data_classes') }}</th>
-                            <th>{{ t('risk') }}</th>
+                            <th style="color: #58a6ff; font-weight: 700;">{{ t('breach_name') }}</th>
+                            <th style="color: #58a6ff; font-weight: 700;">{{ t('breach_date') }}</th>
+                            <th style="color: #58a6ff; font-weight: 700;">{{ t('data_type') }}</th>
+                            <th style="color: #58a6ff; font-weight: 700;">{{ t('severity') }}</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for breach in breaches %}
-                        <tr>
-                            <td class="fw-semibold">{{ breach.name }}</td>
-                            <td>{{ breach.date }}</td>
-                            <td>{{ breach.data_classes | join(', ') }}</td>
+                        <tr style="border-bottom: 1px solid #30363d; background-color: rgba(30, 30, 30, 0.3);">
+                            <td class="fw-semibold" style="color: #c9d1d9;">{{ breach.name }}</td>
+                            <td style="color: #8b949e;">{{ breach.date }}</td>
+                            <td><span class="badge bg-secondary" style="color: #fff;">{{ breach.data_classes|join(", ") if breach.data_classes else "Unknown" }}</span></td>
                             <td>
                                 {% if breach.risk == 'High' %}
-                                    <span class="risk-pill risk-high">High</span>
+                                <span class="badge" style="background-color: #f85149; color: #fff; font-weight: 700;">HIGH</span>
                                 {% elif breach.risk == 'Medium' %}
-                                    <span class="risk-pill risk-medium">Medium</span>
+                                <span class="badge" style="background-color: #d29922; color: #000; font-weight: 700;">MEDIUM</span>
                                 {% else %}
-                                    <span class="risk-pill risk-low">Low</span>
+                                <span class="badge" style="background-color: #3fb950; color: #fff; font-weight: 700;">LOW</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -536,116 +554,757 @@
             </div>
             {% endif %}
 
-            {% if tips %}
+            <!-- Bank Analysis If Any -->
+            {% if bank_analysis %}
             <div class="section-card">
-                <h2 class="h5 mb-3">{{ t('recommended_mitigation') }}</h2>
-                <ul class="tips-list">
-                    {% for tip in tips %}
-                    <li>{{ tip }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-
-            {% if mitigation_data %}
-            <div class="section-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h2 class="h5 mb-0">🛡️ Detailed Mitigation Actions</h2>
-                    {% if estimated_mitigation_time %}
-                    <small class="text-muted">⏱️ {{ estimated_mitigation_time }}</small>
+                <h3 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-university" style="margin-right: 0.5rem;"></i>{{ t('bank_analysis') }}
+                </h3>
+                <div style="background: rgba(88, 166, 255, 0.05); border-left: 3px solid #58a6ff; padding: 1rem; border-radius: 0.5rem;">
+                    {% if bank_analysis.is_valid %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Account Last 4:</strong></span>
+                        <span style="color: #58a6ff; font-weight: 600;">{{ bank_analysis.last4 or 'N/A' }}</span>
+                    </div>
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Exposure Status:</strong></span>
+                        {% if bank_analysis.is_exposed %}
+                        <span class="badge" style="background-color: #f85149; color: #fff;">EXPOSED</span>
+                        {% else %}
+                        <span class="badge" style="background-color: #3fb950; color: #fff;">SAFE</span>
+                        {% endif %}
+                    </div>
+                    {% if bank_analysis.source %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Source:</strong></span>
+                        <span style="color: #d29922;">{{ bank_analysis.source }}</span>
+                    </div>
+                    {% endif %}
+                    {% if bank_analysis.note %}
+                    <div style="color: #8b949e; font-size: 0.9rem; margin-top: 1rem; border-top: 1px solid #30363d; padding-top: 0.75rem;">
+                        <i class="fas fa-info-circle" style="margin-right: 0.5rem;"></i>{{ bank_analysis.note }}
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div style="color: #8b949e; padding: 1rem; background: rgba(248, 81, 73, 0.05); border-radius: 0.5rem; text-align: center;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem; color: #d29922;"></i>
+                        <span>Invalid bank account format or no account entered</span>
+                    </div>
+                    {% endif %}
+                    {% if bank_analysis.disclaimer %}
+                    <div style="color: #8b949e; font-size: 0.85rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #30363d;">
+                        <i class="fas fa-shield-alt" style="margin-right: 0.5rem;"></i><em>{{ bank_analysis.disclaimer }}</em>
+                    </div>
                     {% endif %}
                 </div>
-
-                <div class="mitigation-actions">
-                    {% for action in mitigation_data %}
-                    <div class="action-card mb-3 p-3" style="border-left: 4px solid {% if action.severity == 'HIGH' %}#dc2626{% elif action.severity == 'MEDIUM' %}#f59e0b{% else %}#10b981{% endif %}; background: {% if action.severity == 'HIGH' %}#fef2f2{% elif action.severity == 'MEDIUM' %}#fffbf0{% else %}#f0fdf4{% endif %}; border-radius: 0.5rem;">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <h6 class="mb-1">
-                                    <strong>{{ action.priority_label }}</strong>
-                                </h6>
-                                <h6 class="mb-1">{{ action.title }}</h6>
-                            </div>
-                            <span class="badge" style="background: {% if action.severity == 'HIGH' %}#dc2626{% elif action.severity == 'MEDIUM' %}#f59e0b{% else %}#10b981{% endif %}; color: white;">
-                                {{ action.severity }}
-                            </span>
-                        </div>
-                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">{{ action.description }}</p>
-                        
-                        {% if action.steps %}
-                        <details style="margin-top: 0.5rem;">
-                            <summary style="cursor: pointer; color: #0b57d0; font-weight: 500;">View Steps ({{ action.steps|length }})</summary>
-                            <ol style="margin-top: 0.5rem; padding-left: 1.25rem; font-size: 0.9rem;">
-                                {% for step in action.steps %}
-                                <li class="mb-1">{{ step }}</li>
-                                {% endfor %}
-                            </ol>
-                        </details>
-                        {% endif %}
-
-                        <div class="d-flex justify-content-between mt-2" style="font-size: 0.85rem;">
-                            <span>🏷️ {{ action.action_type }}</span>
-                            <span>⏱️ {{ action.time }}</span>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
             {% endif %}
 
-            {% if malaysian_resources %}
+            <!-- Phone Analysis If Any -->
+            {% if phone_analysis %}
             <div class="section-card">
-                <h2 class="h5 mb-3">🇲🇾 Malaysian Resources & Contact Information</h2>
-                
-                <div class="malaysian-resources">
-                    {% for resource in malaysian_resources %}
-                    <div class="resource-card mb-3 p-3" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                                <h6 class="mb-1"><strong>{{ resource.resource_name }}</strong></h6>
-                                <span class="badge bg-info">{{ resource.resource_type }}</span>
-                            </div>
-                        </div>
-                        
-                        <p class="mb-2 text-muted" style="font-size: 0.9rem;">{{ resource.description }}</p>
-                        
-                        <div style="font-size: 0.9rem;">
-                            {% if resource.phone %}
-                            <div class="mb-1">📞 <strong>Phone:</strong> {{ resource.phone }}</div>
-                            {% endif %}
-                            {% if resource.email %}
-                            <div class="mb-1">📧 <strong>Email:</strong> {{ resource.email }}</div>
-                            {% endif %}
-                            {% if resource.website %}
-                            <div class="mb-1">🌐 <strong>Website:</strong> <a href="{{ resource.website }}" target="_blank">{{ resource.website }}</a></div>
-                            {% endif %}
-                            {% if resource.operating_hours %}
-                            <div class="mb-1">🕐 <strong>Hours:</strong> {{ resource.operating_hours }}</div>
-                            {% endif %}
-                            {% if resource.availability %}
-                            <div>✅ <strong>Available:</strong> {{ resource.availability }}</div>
-                            {% endif %}
-                        </div>
+                <h3 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-mobile-alt" style="margin-right: 0.5rem;"></i>{{ t('phone_analysis') }}
+                </h3>
+                <div style="background: rgba(210, 153, 34, 0.05); border-left: 3px solid #d29922; padding: 1rem; border-radius: 0.5rem;">
+                    {% if phone_analysis.is_valid %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Phone Number:</strong></span>
+                        <span style="color: #c9d1d9; font-family: monospace;">{{ phone_analysis.normalized or phone_analysis.input }}</span>
                     </div>
-                    {% endfor %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Exposure Status:</strong></span>
+                        {% if phone_analysis.is_exposed %}
+                        <span class="badge" style="background-color: #f85149; color: #fff;">EXPOSED</span>
+                        {% else %}
+                        <span class="badge" style="background-color: #3fb950; color: #fff;">SAFE</span>
+                        {% endif %}
+                    </div>
+                    {% if phone_analysis.source %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <span style="color: #c9d1d9;"><strong>Source:</strong></span>
+                        <span style="color: #d29922;">{{ phone_analysis.source }}</span>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div style="color: #8b949e; padding: 1rem; background: rgba(248, 81, 73, 0.05); border-radius: 0.5rem; text-align: center;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem; color: #d29922;"></i>
+                        <span>Invalid phone format or no phone entered. Use +60123456789</span>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
+
+            <!-- MITIGATION PLAN & RESPONSE SECTION -->
+            <div class="section-card" style="border-left: 4px solid #34d399;">
+                <h3 class="h5 mb-3" style="color: #34d399;">
+                    <i class="fas fa-shield-check" style="margin-right: 0.5rem;"></i>Mitigation & Response Plan
+                </h3>
+                
+                <div class="alert alert-info mb-4" style="background: rgba(88, 166, 255, 0.1); border-color: #58a6ff;">
+                    <i class="fas fa-lightbulb" style="margin-right: 0.5rem; color: #58a6ff;"></i>
+                    <strong>Recommended Actions:</strong> Based on your breach exposure, follow these steps immediately to protect your accounts and personal data.
+                </div>
+
+                <div class="row g-3">
+                    <!-- Immediate Actions Card -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="p-3 border rounded-2" style="border-color: #f85149; background: rgba(248, 81, 73, 0.05);">
+                            <h6 style="color: #f85149; margin-bottom: 1rem;">
+                                <i class="fas fa-exclamation-circle" style="margin-right: 0.5rem;"></i>Immediate Actions (Urgent)
+                            </h6>
+                            <ul style="list-style: none; padding: 0; margin: 0;">
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Change all passwords immediately
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Enable 2FA/MFA wherever possible
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Monitor bank & credit accounts
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Check for unauthorized logins
+                                </li>
+                                <li style="color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Review active sessions
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Short-term Actions Card -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="p-3 border rounded-2" style="border-color: #d29922; background: rgba(210, 153, 34, 0.05);">
+                            <h6 style="color: #d29922; margin-bottom: 1rem;">
+                                <i class="fas fa-clock" style="margin-right: 0.5rem;"></i>Short-term Actions (Week 1-2)
+                            </h6>
+                            <ul style="list-style: none; padding: 0; margin: 0;">
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Place fraud alert with credit bureaus
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Get free credit report
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Update security questions
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Review email recovery options
+                                </li>
+                                <li style="color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Update recovery phone/email
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Long-term Actions Card -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="p-3 border rounded-2" style="border-color: #58a6ff; background: rgba(88, 166, 255, 0.05);">
+                            <h6 style="color: #58a6ff; margin-bottom: 1rem;">
+                                <i class="fas fa-line-chart" style="margin-right: 0.5rem;"></i>Long-term Actions (Ongoing)
+                            </h6>
+                            <ul style="list-style: none; padding: 0; margin: 0;">
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Monitor credit reports regularly
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Use unique passwords per account
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Use password manager
+                                </li>
+                                <li style="margin-bottom: 0.75rem; color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Enable breach notifications
+                                </li>
+                                <li style="color: #c9d1d9; font-size: 0.9rem;">
+                                    <i class="fas fa-check" style="margin-right: 0.5rem; color: #34d399;"></i>Regular security audits
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Resources -->
+                <div style="margin-top: 1.5rem; padding: 1rem; background: rgba(88, 166, 255, 0.03); border-left: 3px solid #58a6ff; border-radius: 0.5rem;">
+                    <h6 style="color: #58a6ff; margin-bottom: 0.75rem;">
+                        <i class="fas fa-book" style="margin-right: 0.5rem;"></i>Additional Resources
+                    </h6>
+                    <div style="font-size: 0.9rem; color: #8b949e; line-height: 1.6;">
+                        <p style="margin: 0 0 0.75rem 0;">
+                            <strong>For Malaysian Users (Pengguna Malaysia):</strong><br>
+                            • Bank Negara Malaysia (BNM): <a href="https://www.bnm.gov.my" target="_blank" style="color: #58a6ff; text-decoration: none;">www.bnm.gov.my</a><br>
+                            • Securities Commission: <a href="https://www.sc.com.my" target="_blank" style="color: #58a6ff; text-decoration: none;">www.sc.com.my</a><br>
+                            • Cyber Security Malaysia: <a href="https://www.cybersecurity.my" target="_blank" style="color: #58a6ff; text-decoration: none;">www.cybersecurity.my</a>
+                        </p>
+                        <p style="margin: 0;">
+                            <strong>International Resources:</strong><br>
+                            • HIBP Notification: <a href="https://haveibeenpwned.com" target="_blank" style="color: #58a6ff; text-decoration: none;">haveibeenpwned.com</a><br>
+                            • Identity Theft.gov: <a href="https://identitytheft.gov" target="_blank" style="color: #58a6ff; text-decoration: none;">identitytheft.gov</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {% endif %}
+
+            <!-- DECOY BANK BREACHES SECTION -->
+            {% if decoy_bank_breaches %}
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <h2 class="h5 mb-0" style="color: #58a6ff;">
+                        <i class="fas fa-bank"></i> Decoy Bank Breaches Database
+                    </h2>
+                    <span class="badge bg-warning text-dark" style="font-size: 0.75rem; padding: 0.4rem 0.7rem;">
+                        <i class="fas fa-flask"></i> DEMO DATA ONLY
+                    </span>
+                </div>
+
+                <div class="alert alert-info mb-3" style="border-radius: 0.75rem; border-color: #1f6feb; background: rgba(31, 110, 251, 0.1);">
+                    <i class="fas fa-info-circle" style="margin-right: 0.5rem; color: #58a6ff;"></i>
+                    <strong>Academic Demonstration:</strong> This section displays completely fictional banking breach data created exclusively for FYP thesis presentation and cybersecurity scenario analysis. No real financial institutions, accounts, or incidents are represented.
+                </div>
+
+                <!-- Summary Cards for Decoy Breaches -->
+                {% if decoy_breaches_summary %}
+                <div class="row g-2 mb-4">
+                    <div class="col-6 col-md-3 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #4d3f0d 0%, #6f5f1a 100%); border-color: #d29922; border-width: 2px;">
+                            <div style="font-size: 1.2rem; color: #d29922; margin-bottom: 0.3rem;">
+                                <i class="fas fa-bank"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600; font-size: 0.75rem;">Total Breaches</div>
+                            <div class="fw-semibold" style="font-size: 1.3rem; color: #d29922;">{{ decoy_breaches_summary.total_breaches }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #6f0d0d 0%, #7f1a1a 100%); border-color: #ff7f7f; border-width: 2px;">
+                            <div style="font-size: 1.2rem; color: #ff7f7f; margin-bottom: 0.3rem;">
+                                <i class="fas fa-exclamation-circle"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600; font-size: 0.75rem;">High Risk</div>
+                            <div class="fw-semibold" style="font-size: 1.3rem; color: #ff7f7f;">{{ decoy_breaches_summary.high_severity_count }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #6f4d0d 0%, #7f6f1a 100%); border-color: #d29922; border-width: 2px;">
+                            <div style="font-size: 1.2rem; color: #d29922; margin-bottom: 0.3rem;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600; font-size: 0.75rem;">Medium Risk</div>
+                            <div class="fw-semibold" style="font-size: 1.3rem; color: #d29922;">{{ decoy_breaches_summary.medium_severity_count }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-6 col-md-3 col-lg-2">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #0d4d2d 0%, #1a6f3f 100%); border-color: #34d399; border-width: 2px;">
+                            <div style="font-size: 1.2rem; color: #34d399; margin-bottom: 0.3rem;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600; font-size: 0.75rem;">Low Risk</div>
+                            <div class="fw-semibold" style="font-size: 1.3rem; color: #34d399;">{{ decoy_breaches_summary.low_severity_count }}</div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="p-3 border rounded-3 h-100" style="background: linear-gradient(135deg, #3f2d6f 0%, #4f3f7f 100%); border-color: #b19cd9; border-width: 2px;">
+                            <div style="font-size: 1.2rem; color: #b19cd9; margin-bottom: 0.3rem;">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="text-muted small" style="font-weight: 600; font-size: 0.75rem;">Total Affected</div>
+                            <div class="fw-semibold" style="font-size: 1.3rem; color: #b19cd9;">
+                                {{ "{:,}".format(decoy_breaches_summary.total_affected_accounts) }} accounts
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Decoy Breaches Table -->
+                <div class="table-responsive">
+                    <table class="table align-middle" style="font-size: 0.9rem;">
+                        <thead>
+                        <tr style="background: linear-gradient(135deg, #161b22 0%, #0d1117 100%);">
+                            <th>
+                                <i class="fas fa-building" style="margin-right: 0.3rem; color: #d29922;"></i>
+                                Institution Name
+                            </th>
+                            <th>
+                                <i class="fas fa-calendar" style="margin-right: 0.3rem; color: #58a6ff;"></i>
+                                Breach Date
+                            </th>
+                            <th>
+                                <i class="fas fa-shield-alt" style="margin-right: 0.3rem; color: #b19cd9;"></i>
+                                Risk Level
+                            </th>
+                            <th>
+                                <i class="fas fa-database" style="margin-right: 0.3rem; color: #d29922;"></i>
+                                Data Exposed (Sample)
+                            </th>
+                            <th>
+                                <i class="fas fa-users" style="margin-right: 0.3rem; color: #34d399;"></i>
+                                Affected Accounts
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for breach in decoy_bank_breaches %}
+                        <tr style="border-bottom: 1px solid #30363d; transition: all 0.2s ease;">
+                            <td class="fw-semibold" style="color: #58a6ff;">
+                                <i class="fas fa-university" style="margin-right: 0.3rem; opacity: 0.7;"></i>
+                                {{ breach.institution }}
+                            </td>
+                            <td style="color: #8b949e;">{{ breach.date }}</td>
+                            <td>
+                                {% if breach.severity == 'High' %}
+                                <span class="badge" style="background: #6f0d0d; color: #ff7f7f;">HIGH</span>
+                                {% elif breach.severity == 'Medium' %}
+                                <span class="badge" style="background: #6f4d0d; color: #d29922;">MEDIUM</span>
+                                {% else %}
+                                <span class="badge" style="background: #0d4d2d; color: #34d399;">LOW</span>
+                                {% endif %}
+                            </td>
+                            <td style="color: #8b949e; font-size: 0.85rem;">
+                                <span title="{{ breach.data_exposed }}">{{ breach.data_exposed | truncate(30) }}</span>
+                            </td>
+                            <td style="color: #34d399; font-weight: 600;">
+                                {{ "{:,}".format(breach.affected) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="margin-top: 1rem; padding: 1rem; background: #161b22; border-radius: 0.75rem; border-left: 4px solid #58a6ff;">
+                    <p class="small text-muted mb-0">
+                        <i class="fas fa-flask"></i> <strong>Research Context:</strong> This decoy dataset is used for testing OSINT analysis workflows and cybersecurity scenario modeling on fictional Malaysian banking institutions designed for educational purposes only.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- GLOBAL BREACH HEATMAP SECTION -->
+            <div class="section-card">
+                <h2 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-globe"></i> Global Breach Heatmap
+                </h2>
+
+                <div class="alert alert-info" style="border-radius: 0.75rem; border-color: #1f6feb; background: rgba(31, 110, 251, 0.1); margin-bottom: 1rem;">
+                    <i class="fas fa-map-marker-alt" style="margin-right: 0.5rem; color: #58a6ff;"></i>
+                    <strong>Interactive World Map:</strong> This heatmap displays the geolocation origin points of simulated breach incidents. Red glowing markers indicate high-risk breach hotspots. The visualization uses real-time intelligence mapping for academic breach analysis and threat intelligence studies.
+                </div>
+
+                <!-- Leaflet Map Container -->
+                <div id="breachHeatmapMap" style="margin-bottom: 1.5rem;"></div>
+
+                <!-- Heatmap Statistics -->
+                <div class="heatmap-info">
+                    <div class="heatmap-stat">
+                        <div class="heatmap-stat-value">5</div>
+                        <div class="heatmap-stat-label">Active Hotspots</div>
+                    </div>
+                    <div class="heatmap-stat">
+                        <div class="heatmap-stat-value">{% if decoy_breaches_summary %}{{ (decoy_breaches_summary.total_affected_accounts / 1000) | int }}K+{% else %}1.2M+{% endif %}</div>
+                        <div class="heatmap-stat-label">Compromised Accounts</div>
+                    </div>
+                    <div class="heatmap-stat">
+                        <div class="heatmap-stat-value">4</div>
+                        <div class="heatmap-stat-label">Threat Regions</div>
+                    </div>
+                    <div class="heatmap-stat">
+                        <div class="heatmap-stat-value">CRITICAL</div>
+                        <div class="heatmap-stat-label">Overall Risk Level</div>
+                    </div>
+                </div>
+
+                <!-- Heatmap Legend -->
+                <div class="heatmap-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff4444; box-shadow: 0 0 10px rgba(255, 68, 68, 0.6);"></div>
+                        <span>High Risk (3+ Breaches)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ffaa44; box-shadow: 0 0 8px rgba(255, 170, 68, 0.5);"></div>
+                        <span>Medium Risk (1-2 Breaches)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #44ff44; box-shadow: 0 0 8px rgba(68, 255, 68, 0.4);"></div>
+                        <span>Low Risk (Monitored)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #4488ff;"></div>
+                        <span>Data Center</span>
+                    </div>
+                </div>
+
+                <!-- View Toggle Buttons -->
+                <div style="margin-top: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="toggleMapView('map')">
+                        <i class="fas fa-map"></i> Map View
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="toggleMapView('heatmap')">
+                        <i class="fas fa-fire"></i> Heatmap View
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="refreshBreachMap()">
+                        <i class="fas fa-sync"></i> Refresh Data
+                    </button>
+                </div>
+
+                <!-- ECharts Heatmap Container (Hidden by default) -->
+                <div id="breachHeatmapChart" style="display: none; margin-top: 1.5rem;"></div>
+            </div>
+
         </div>
     </div>
-</div>
-<script>
-    (function () {
-        var bars = document.querySelectorAll(".progress-bar[data-score]");
-        bars.forEach(function (bar) {
-            var score = parseInt(bar.getAttribute("data-score"), 10);
-            if (Number.isNaN(score)) {
-                score = 0;
+
+    <!-- Leaflet JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    
+    <!-- Global Breach Heatmap Script -->
+    <script>
+        let breachMap = null;
+        let breachMarkers = [];
+        let currentMapView = 'map';
+
+        // Breach hotspot locations - Malaysia States Focus
+        const breachHotspots = [
+            {
+                name: 'Kuala Lumpur (FT)',
+                lat: 3.1390,
+                lng: 101.6869,
+                breaches: 345,
+                severity: 'Critical',
+                accounts: 2150000,
+                color: '#ff4444',
+                region: 'Lebih 2 juta akun terancam'
+            },
+            {
+                name: 'Selangor',
+                lat: 2.7258,
+                lng: 101.5244,
+                breaches: 234,
+                severity: 'High',
+                accounts: 1890000,
+                color: '#ff5555',
+                region: 'Negeri terbesar Malaysia'
+            },
+            {
+                name: 'Pulau Pinang',
+                lat: 5.3521,
+                lng: 100.3329,
+                breaches: 89,
+                severity: 'High',
+                accounts: 580000,
+                color: '#ff6666',
+                region: 'Hub IT & Perdagangan'
+            },
+            {
+                name: 'Johor Bahru',
+                lat: 1.4854,
+                lng: 103.7618,
+                breaches: 156,
+                severity: 'High',
+                accounts: 920000,
+                color: '#ff7777',
+                region: 'Pintu gerbang selatan'
+            },
+            {
+                name: 'Pahang',
+                lat: 3.8126,
+                lng: 103.3256,
+                breaches: 67,
+                severity: 'Medium',
+                accounts: 340000,
+                color: '#ffaa44',
+                region: 'Negeri terbesar Semenanjung'
+            },
+            {
+                name: 'Sabah',
+                lat: 5.9788,
+                lng: 117.8753,
+                breaches: 45,
+                severity: 'Medium',
+                accounts: 210000,
+                color: '#ffbb44',
+                region: 'Negeri di Borneo'
+            },
+            {
+                name: 'Sarawak',
+                lat: 1.5533,
+                lng: 110.3592,
+                breaches: 34,
+                severity: 'Low',
+                accounts: 156000,
+                color: '#ffdd44',
+                region: 'Negeri terbesar Malaysia'
             }
-            score = Math.max(0, Math.min(score, 100));
-            bar.style.width = score + "%";
+        ];
+
+        // Initialize Leaflet Map - Malaysia Focus
+        function initBreachMap() {
+            if (breachMap) {
+                breachMap.remove();
+            }
+
+            // Center on Malaysia with zoom level 6
+            breachMap = L.map('breachHeatmapMap').setView([4.2, 102.2], 6);
+
+            // Dark tile layer 
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 19,
+                className: 'dark-map'
+            }).addTo(breachMap);
+
+            // Clear existing markers
+            breachMarkers.forEach(marker => breachMap.removeLayer(marker));
+            breachMarkers = [];
+
+            // Add custom markers for each hotspot
+            breachHotspots.forEach(hotspot => {
+                const customIcon = L.divIcon({
+                    html: `
+                        <div style="
+                            width: 32px;
+                            height: 32px;
+                            background: ${hotspot.color};
+                            border: 3px solid #fff;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: bold;
+                            color: #fff;
+                            box-shadow: 0 0 20px ${hotspot.color}, 0 0 40px ${hotspot.color}40;
+                            animation: pulse 2s ease-in-out infinite;
+                            font-size: 14px;
+                        ">
+                            <i class="fas fa-exclamation" style="font-size: 16px;"></i>
+                        </div>
+                    `,
+                    className: 'breach-marker',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16],
+                    popupAnchor: [0, -16]
+                });
+
+                const marker = L.marker([hotspot.lat, hotspot.lng], { icon: customIcon })
+                    .bindPopup(`
+                        <div style="color: #0d1117; min-width: 250px;">
+                            <h6 style="margin: 0 0 8px 0; color: #1f6feb; font-weight: bold;">
+                                <i class="fas fa-map-pin" style="margin-right: 6px;"></i>${hotspot.name}
+                            </h6>
+                            <hr style="margin: 8px 0; border-color: #ddd;">
+                            <p style="margin: 6px 0; font-size: 13px;">
+                                <strong><i class="fas fa-exclamation-triangle" style="color: ${hotspot.color}; margin-right: 4px;"></i>Severity:</strong> ${hotspot.severity}
+                            </p>
+                            <p style="margin: 6px 0; font-size: 13px;">
+                                <strong><i class="fas fa-ban" style="margin-right: 4px;"></i>Breaches Detected:</strong> ${hotspot.breaches}
+                            </p>
+                            <p style="margin: 6px 0; font-size: 13px;">
+                                <strong><i class="fas fa-users" style="margin-right: 4px;"></i>Compromised Accounts:</strong> ${hotspot.accounts.toLocaleString()}
+                            </p>
+                            <p style="margin: 6px 0; font-size: 12px; color: #666;">
+                                <em>Last Updated: Just Now</em>
+                            </p>
+                        </div>
+                    `)
+                    .addTo(breachMap);
+
+                marker.openPopup();
+                breachMarkers.push(marker);
+            });
+
+            // Fit bounds to show all markers
+            if (breachMarkers.length > 0) {
+                const group = new L.featureGroup(breachMarkers);
+                breachMap.fitBounds(group.getBounds(), { padding: [50, 50] });
+            }
+        }
+
+        // Initialize ECharts Heatmap
+        function initEChartsHeatmap() {
+            const chartDom = document.getElementById('breachHeatmapChart');
+            if (!chartDom) return;
+
+            const myChart = echarts.init(chartDom, 'dark');
+
+            // Convert breach hotspots to intensity data for visualization
+            const intensityData = breachHotspots.map(hotspot => ({
+                name: hotspot.name,
+                value: [hotspot.lng, hotspot.lat, hotspot.breaches],
+                itemStyle: {
+                    color: hotspot.color
+                }
+            }));
+
+            const maxBreaches = Math.max(...breachHotspots.map(h => h.breaches));
+
+            const option = {
+                title: {
+                    text: 'Sengatan Data Breach Mengikut Negeri (Intensiti)',
+                    left: 'center',
+                    textStyle: {
+                        color: '#8b949e',
+                        fontSize: 14
+                    }
+                },
+                geo: {
+                    map: 'world',
+                    roam: true,
+                    center: [102.5, 4.5],
+                    zoom: 3.8,
+                    label: {
+                        emphasis: { show: false }
+                    },
+                    itemStyle: {
+                        normal: {
+                            areaColor: '#1a2840',
+                            borderColor: '#4a5c8a'
+                        },
+                        emphasis: {
+                            areaColor: '#2a4080'
+                        }
+                    }
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(param) {
+                        if (param.componentSubType === 'scatter') {
+                            return `<strong>${param.data.name}</strong><br/>
+                                Breach: ${param.data.value[2]}<br/>
+                                Lokasi: [${param.data.value[1].toFixed(2)}, ${param.data.value[0].toFixed(2)}]`;
+                        }
+                        return param.name;
+                    }
+                },
+                series: [
+                    {
+                        name: 'Heatmap Breach Intensity',
+                        type: 'effectScatter',
+                        coordinateSystem: 'geo',
+                        data: intensityData,
+                        symbolSize: function (val) {
+                            // Size based on breach count (5-40px)
+                            return Math.min(40, 5 + (val[2] / maxBreaches) * 35);
+                        },
+                        showEffectOn: 'render',
+                        rippleEffect: {
+                            brushType: 'stroke',
+                            scale: 3,
+                            period: 4
+                        },
+                        hoverAnimation: true,
+                        label: {
+                            formatter: '{b}',
+                            position: 'right',
+                            show: false
+                        },
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: '#333'
+                        },
+                        zlevel: 1
+                    },
+                    {
+                        name: 'Breach Hotspots',
+                        type: 'scatter',
+                        coordinateSystem: 'geo',
+                        data: intensityData,
+                        symbolSize: function (val) {
+                            return Math.min(30, 4 + (val[2] / maxBreaches) * 25);
+                        },
+                        label: {
+                            formatter: function(param) {
+                                return param.data.name.split('(')[0].trim();
+                            },
+                            position: 'top',
+                            show: true,
+                            fontSize: 10,
+                            color: '#8b949e'
+                        },
+                        itemStyle: {
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: 11,
+                                color: '#fff'
+                            }
+                        },
+                        zlevel: 2
+                    }
+                ],
+                visualMap: {
+                    min: 0,
+                    max: maxBreaches,
+                    splitNumber: 5,
+                    inRange: {
+                        color: ['#50a3ba', '#eac736', '#d94e5d']
+                    },
+                    textStyle: {
+                        color: '#8b949e'
+                    },
+                    bottom: 30,
+                    left: 10,
+                    dimension: 2
+                }
+            };
+
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+
+            myChart.setOption(option);
+        }
+
+        // Toggle between map and heatmap views
+        function toggleMapView(view) {
+            currentMapView = view;
+            const mapContainer = document.getElementById('breachHeatmapMap');
+            const chartContainer = document.getElementById('breachHeatmapChart');
+
+            if (view === 'map') {
+                mapContainer.style.display = 'block';
+                chartContainer.style.display = 'none';
+                if (!breachMap) {
+                    setTimeout(initBreachMap, 100);
+                }
+            } else {
+                mapContainer.style.display = 'none';
+                chartContainer.style.display = 'block';
+                initEChartsHeatmap();
+            }
+        }
+
+        // Refresh map data
+        function refreshBreachMap() {
+            const originalHTML = event.target.innerHTML;
+            event.target.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+
+            setTimeout(() => {
+                event.target.innerHTML = originalHTML;
+                if (currentMapView === 'map' && breachMap) {
+                    initBreachMap();
+                } else {
+                    initEChartsHeatmap();
+                }
+            }, 500);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initBreachMap();
         });
-    })();
-</script>
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
