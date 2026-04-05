@@ -3,268 +3,398 @@
 {% block title %}Hash Algorithm & Password Crackability Analysis{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>🔐 Hash Algorithm & Password Crackability Analysis</h1>
-            <p class="text-muted">Forensic analysis: How vulnerable are exposed passwords to cracking?</p>
-            <p><strong>Email:</strong> {{ investigation.email }}</p>
-        </div>
-        <a href="/history" class="btn btn-secondary">← Back</a>
-    </div>
-
-    <!-- Forensic Reports -->
-    {% for report in forensic_reports %}
-    <div class="card mb-4 border-{% if report.overall_risk_level == 'CRITICAL' %}danger{% elif report.overall_risk_level == 'HIGH' %}warning{% else %}info{% endif %}">
-        <div class="card-header bg-{% if report.overall_risk_level == 'CRITICAL' %}danger{% elif report.overall_risk_level == 'HIGH' %}warning{% else %}info{% endif %} text-white">
-            <h5>{{ report.breach_name }} - Forensic Report</h5>
-        </div>
-        <div class="card-body">
-            <!-- Overall Risk -->
-            <div class="alert alert-{% if report.overall_risk_level == 'CRITICAL' %}danger{% elif report.overall_risk_level == 'HIGH' %}warning{% else %}info{% endif %}">
-                <h6>⚠️ Overall Risk Level: <strong>{{ report.overall_risk_level }}</strong></h6>
-                <div class="progress mt-2">
-                    <div class="progress-bar {% if report.overall_risk_score > 70 %}bg-danger{% elif report.overall_risk_score > 50 %}bg-warning{% else %}bg-success{% endif %}" 
-                         style="width: {{ report.overall_risk_score }}%">
-                        {{ report.overall_risk_score }}/100
-                    </div>
-                </div>
-            </div>
-
-            <!-- 1. Data Types Analysis -->
-            <h6 class="mt-4 mb-3">📋 Data Types Exposed:</h6>
-            <div class="row">
-                {% for dtype, risk_info in report.datatype_risks.items() %}
-                <div class="col-md-4 mb-2">
-                    <div class="badge {% if risk_info.risk_level == 'CRITICAL' %}badge-danger{% elif risk_info.risk_level == 'HIGH' %}badge-warning{% else %}badge-info{% endif %} p-2">
-                        {{ dtype }}<br><strong>{{ risk_info.risk_score }}/100</strong>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            <!-- 2. Hash Algorithm Analysis -->
-            <h6 class="mt-4 mb-3">🔍 Password Hash Algorithm Analysis:</h6>
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Algorithm Detected:</strong> <span class="badge badge-primary">{{ report.hash_algorithm }}</span></p>
-                            <p><strong>Confidence Level:</strong> {{ report.hash_confidence }}%</p>
-                            {% if report.hash_confidence < 50 %}
-                            <div class="alert alert-warning mt-2">⚠️ Low confidence - Algorithm may differ</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Salted:</strong> {% if report.hash_is_salted %}<span class="badge badge-success">YES ✓</span>{% else %}<span class="badge badge-danger">NO ✗</span>{% endif %}</p>
-                            <p><strong>Cryptographically Broken:</strong> {% if report.hash_is_broken %}<span class="badge badge-danger">YES ✗</span>{% else %}<span class="badge badge-success">NO ✓</span>{% endif %}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. Password Crackability Assessment -->
-            <h6 class="mt-4 mb-3">⚡ Password Crackability Assessment:</h6>
-            <div class="card border-{% if report.password_crack_risk.crackability_score > 70 %}danger{% elif report.password_crack_risk.crackability_score > 50 %}warning{% else %}success{% endif %}">
-                <div class="card-body">
-                    <div class="alert alert-{% if report.password_crack_risk.crackability_score > 70 %}danger{% elif report.password_crack_risk.crackability_score > 50 %}warning{% else %}success{% endif %}">
-                        {{ report.password_crack_risk.crackability_level }}
-                    </div>
-                    
-                    <div class="progress mb-3">
-                        <div class="progress-bar {% if report.password_crack_risk.crackability_score > 70 %}bg-danger{% elif report.password_crack_risk.crackability_score > 50 %}bg-warning{% else %}bg-success{% endif %}" 
-                             style="width: {{ report.password_crack_risk.crackability_score }}%">
-                            {{ report.password_crack_risk.crackability_score }}/100 Crackable
-                        </div>
-                    </div>
-
-                    <p><strong>Recommendation:</strong> {{ report.password_crack_risk.recommendation }}</p>
-                </div>
-            </div>
-
-            <!-- 4. Technical Explanation -->
-            <h6 class="mt-4 mb-3">📚 Technical Explanation:</h6>
-            <div class="alert alert-info">
-                <p><strong>Why {{ report.hash_algorithm }}?</strong></p>
-                <ul>
-                    {% if report.hash_algorithm == 'MD5' %}
-                        <li>MD5 is <strong>cryptographically broken</strong> (proven since 2004)</li>
-                        <li>Can be cracked in <strong>SECONDS</strong> using GPU/ASIC hardware</li>
-                        <li>Rainbow tables available freely online</li>
-                        <li>Cost: <strong>$0 - essentially free to crack</strong></li>
-                        <li><strong class="text-danger">Action: Assume password is compromised. Change immediately.</strong></li>
-                    {% elif report.hash_algorithm == 'SHA1' %}
-                        <li>SHA1 is <strong>cryptographically broken</strong> (proven in 2017)</li>
-                        <li>Practical collision attacks have been demonstrated</li>
-                        <li>Can be cracked in <strong>MINUTES to HOURS</strong></li>
-                        <li><strong class="text-danger">Action: Change password immediately. Assume compromise.</strong></li>
-                    {% elif report.hash_algorithm == 'SHA256' %}
-                        <li>SHA256 is still cryptographically sound</li>
-                        <li>However, <strong>unsalted SHA256 is vulnerable to rainbow tables</strong></li>
-                        <li>Can be cracked in <strong>hours to days</strong> on consumer hardware</li>
-                        <li><strong>Salted version is more secure (takes months/years)</strong></li>
-                        <li>If password is strong (12+ chars, mixed case + numbers + symbols): Acceptable risk</li>
-                    {% elif report.hash_algorithm == 'bcrypt' %}
-                        <li>bcrypt is <strong>industry-recommended</strong> for password hashing</li>
-                        <li>Includes automatic salting and adaptive cost factor</li>
-                        <li>Would take <strong>YEARS to DECADES</strong> to crack with brute force</li>
-                        <li>Security scales with time (gets harder each year as computers faster)</li>
-                        <li><strong class="text-success">If password strong: Very low immediate risk. Monitor accounts.</strong></li>
-                    {% elif report.hash_algorithm == 'Argon2' %}
-                        <li>Argon2 is the <strong>MODERN BEST PRACTICE</strong> (since 2015)</li>
-                        <li>Memory-hard algorithm - resistant to GPU/ASIC attacks</li>
-                        <li>Would take <strong>MONTHS/YEARS+</strong> even with specialized hardware</li>
-                        <li><strong class="text-success">Very secure. Monitor accounts as precaution, but low risk.</strong></li>
-                    {% else %}
-                        <li>Algorithm: {{ report.hash_algorithm }}</li>
-                        <li>See reference table below for details</li>
-                    {% endif %}
-                </ul>
-            </div>
-
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Hash Algorithm Reference Database -->
-    <div class="card mt-4">
-        <div class="card-header bg-dark">
-            <h5 class="text-white">🗄️ Hash Algorithm Reference Database</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm table-bordered">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Algorithm</th>
-                            <th>Broken?</th>
-                            <th>Crack Speed</th>
-                            <th>Estimated Cost</th>
-                            <th>Recommendation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for algo in hash_reference %}
-                        <tr class="{% if algo.is_broken %}table-danger{% elif algo.recommendation == 'RECOMMENDED' %}table-success{% elif algo.recommendation == 'ACCEPTABLE' %}table-warning{% else %}table-secondary{% endif %}">
-                            <td><strong>{{ algo.algorithm_name }}</strong></td>
-                            <td>
-                                {% if algo.is_broken %}
-                                    <span class="badge badge-danger">YES</span> ({{ algo.vulnerability_year }})
-                                {% else %}
-                                    <span class="badge badge-success">NO</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ algo.crack_speed }}</td>
-                            <td>${{ algo.estimated_cost_per_crack_usd or '?' }}</td>
-                            <td>
-                                {% if algo.recommendation == 'DEPRECATED' %}
-                                    <span class="badge badge-danger">DEPRECATED</span>
-                                {% elif algo.recommendation == 'LEGACY' %}
-                                    <span class="badge badge-warning">LEGACY</span>
-                                {% elif algo.recommendation == 'ACCEPTABLE' %}
-                                    <span class="badge badge-info">ACCEPTABLE</span>
-                                {% elif algo.recommendation == 'RECOMMENDED' %}
-                                    <span class="badge badge-success">RECOMMENDED</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Data Type Risk Matrix -->
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5>📊 Data Type Risk Matrix</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Data Type</th>
-                            <th>Risk Score</th>
-                            <th>Risk Level</th>
-                            <th>Why It Matters</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for dtype in datatype_reference %}
-                        <tr>
-                            <td><strong>{{ dtype.data_type }}</strong></td>
-                            <td>{{ dtype.base_risk_score }}/100</td>
-                            <td>
-                                {% if dtype.risk_level == 'CRITICAL' %}
-                                    <span class="badge badge-danger">CRITICAL</span>
-                                {% elif dtype.risk_level == 'HIGH' %}
-                                    <span class="badge badge-warning">HIGH</span>
-                                {% elif dtype.risk_level == 'MEDIUM' %}
-                                    <span class="badge badge-info">MEDIUM</span>
-                                {% else %}
-                                    <span class="badge badge-success">LOW</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ dtype.description }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recommendations -->
-    <div class="card mt-4">
-        <div class="card-header bg-success">
-            <h5 class="text-white">✅ Action Plan</h5>
-        </div>
-        <div class="card-body">
-            <ol>
-                <li><strong>If MD5/SHA1 detected:</strong> URGENT - Password is likely cracked. Change immediately on all platforms.</li>
-                <li><strong>If SHA256/PBKDF2 detected:</strong> Change password if weak. Weak passwords can be cracked in hours-days.</li>
-                <li><strong>If bcrypt/Argon2 detected:</strong> Low immediate risk if password is strong. Monitor for unauthorized access.</li>
-                <li><strong>Enable 2FA:</strong> Even with strong password hash, 2FA prevents account takeover.</li>
-                <li><strong>Monitor Credit:</strong> If financial data exposed, check credit reports monthly.</li>
-                <li><strong>Subscribe to alerts:</strong> Use /monitoring to get automatic re-checks if new breaches detected.</li>
-            </ol>
-        </div>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-<script>
-// Educational timeline: Show evolution of hash algorithms
-const timelineCtx = document.getElementById('algoTimeline');
-if (timelineCtx) {
-    new Chart(timelineCtx, {
-        type: 'bar',
-        data: {
-            labels: ['MD5\n(1992)', 'SHA1\n(1995)', 'SHA256\n(2001)', 'PBKDF2\n(2000)', 'bcrypt\n(1999)', 'Argon2\n(2015)'],
-            datasets: [{
-                label: 'Security Score (0-100)',
-                data: [2, 10, 60, 70, 95, 99],
-                backgroundColor: ['#dc3545', '#fd7e14', '#ffc107', '#17a2b8', '#28a745', '#20c997'],
-                borderColor: ['#c82333', '#e66100', '#e0a800', '#0e6674', '#1e7e34', '#0b5394'],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    title: { display: true, text: 'Security Level' }
-                }
-            }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Hash Analysis - OSINT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #0d1117;
+            --bg-accent: #161b22;
+            --panel: #0d1117;
+            --ink: #c9d1d9;
+            --muted: #8b949e;
+            --primary: #58a6ff;
+            --primary-soft: #1f6feb;
+            --danger-soft: #da3633;
+            --warning-soft: #d29922;
+            --success-soft: #238636;
+            --border: #30363d;
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
         }
-    });
-}
-</script>
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "DM Sans", sans-serif;
+            color: var(--ink);
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+        }
+
+        .shell {
+            max-width: 1400px;
+            margin: 2.5rem auto;
+            padding: 0 1rem;
+            animation: revealUp 0.55s ease-out;
+        }
+
+        .hero {
+            background: linear-gradient(120deg, #1f6feb 0%, #0d47a1 50%, #1a237e 100%);
+            border-radius: 1.2rem;
+            padding: 1.4rem 1.5rem;
+            color: #f0f6fc;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.1rem;
+            border-left: 4px solid #58a6ff;
+        }
+
+        .hero h1 {
+            font-family: "Outfit", sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.2px;
+            font-size: 2rem;
+        }
+
+        .hero p {
+            margin-bottom: 0.3rem;
+            color: rgba(240, 246, 252, 0.85);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 1.2rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: fadeIn 0.35s ease-out;
+            margin-bottom: 1.5rem;
+        }
+
+        .panel-body {
+            padding: 1.4rem;
+        }
+
+        .risk-box {
+            border-radius: 0.95rem;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .risk-box.critical {
+            background: rgba(218, 54, 51, 0.15);
+            border-left: 4px solid #da3633;
+        }
+
+        .risk-box.high {
+            background: rgba(210, 153, 34, 0.15);
+            border-left: 4px solid #d29922;
+        }
+
+        .risk-box.medium {
+            background: rgba(240, 136, 62, 0.15);
+            border-left: 4px solid #f0883e;
+        }
+
+        .risk-box.low {
+            background: rgba(35, 134, 54, 0.15);
+            border-left: 4px solid #238636;
+        }
+
+        .hash-card {
+            border: 1px solid var(--border);
+            border-radius: 0.95rem;
+            background: #161b22;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            animation: fadeIn 0.35s ease-out;
+        }
+
+        .badge-critical { background: #da3633 !important; color: #f0f6fc !important; }
+        .badge-high { background: #d29922 !important; color: #0d1117 !important; }
+        .badge-medium { background: #f0883e !important; color: #0d1117 !important; }
+        .badge-low { background: #238636 !important; color: #f0f6fc !important; }
+
+        .progress {
+            background: #161b22;
+            border-radius: 0.5rem;
+            height: 1.5rem;
+        }
+
+        .progress-bar {
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .stat-box {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 0.95rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #58a6ff;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+
+        .text-muted {
+            color: var(--muted) !important;
+        }
+
+        @keyframes revealUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1><i class="fas fa-lock"></i> Hash Algorithm & Password Crackability Analysis</h1>
+                    <p>Forensic analysis: How vulnerable are exposed passwords to cracking?</p>
+                    <span class="badge bg-light text-dark px-3 py-2"><i class="fas fa-envelope"></i> {{ investigation.email }}</span>
+                </div>
+                <a href="/history" class="btn btn-light">
+                    <i class="fas fa-arrow-left"></i> Back to History
+                </a>
+            </div>
+        </div>
+
+        <!-- Forensic Reports -->
+        {% if forensic_reports %}
+        {% for report in forensic_reports %}
+        <div class="panel">
+            <div class="panel-body" style="border-bottom: 1px solid var(--border);">
+                <h5 style="margin: 0;">
+                    <i class="fas fa-shield-alt"></i> 
+                    <span style="color: #58a6ff;">{{ report.breach_name }}</span>
+                    <span class="badge badge-{{ report.overall_risk_level | lower }}" style="float: right;">
+                        {{ report.overall_risk_level }}
+                    </span>
+                </h5>
+                <small class="text-muted">Password Hash & Crackability Forensic Report</small>
+            </div>
+            <div class="panel-body">
+                <!-- Overall Risk -->
+                <div class="risk-box {{ report.overall_risk_level | lower }}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 style="margin: 0; color: {% if report.overall_risk_level == 'CRITICAL' %}#ff7f7f{% elif report.overall_risk_level == 'HIGH' %}#d29922{% elif report.overall_risk_level == 'MEDIUM' %}#f0883e{% else %}#58a6ff{% endif %};">
+                            <i class="fas fa-exclamation-triangle"></i> Overall Risk Level
+                        </h6>
+                        <span class="badge badge-{{ report.overall_risk_level | lower }}">
+                            {{ report.overall_risk_level }}
+                        </span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar bg-{% if report.overall_risk_score > 70 %}danger{% elif report.overall_risk_score > 50 %}warning{% else %}success{% endif %}" 
+                             style="width: {{ report.overall_risk_score }}%">
+                            {{ report.overall_risk_score }}/100
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. Data Types Analysis -->
+                <h6 style="color: #d29922; margin: 1.5rem 0 1rem 0;">
+                    <i class="fas fa-list"></i> Data Types Exposed
+                </h6>
+                <div class="row">
+                    {% if report.datatype_risks %}
+                        {% for dtype, risk_info in report.datatype_risks.items() %}
+                        <div class="col-md-4 mb-2">
+                            <div class="stat-box">
+                                <div style="color: #58a6ff; font-weight: 600; margin-bottom: 0.5rem;">
+                                    <i class="fas fa-file"></i> {{ dtype }}
+                                </div>
+                                <div>
+                                    <span class="badge badge-{{ risk_info.risk_level | lower }}">
+                                        {{ risk_info.risk_level }}
+                                    </span>
+                                    <div style="color: #58a6ff; font-weight: 700; margin-top: 0.5rem;">
+                                        {{ risk_info.risk_score }}/100
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div style="text-align: center; padding: 1rem;">
+                                <small class="text-muted"><i class="fas fa-info-circle"></i> No data type breakdown available</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- 2. Hash Algorithm Analysis -->
+                <h6 style="color: #d29922; margin: 1.5rem 0 1rem 0;">
+                    <i class="fas fa-lock"></i> Password Hash Algorithm Analysis
+                </h6>
+                {% if report.hash_algorithms %}
+                    {% for algo, algo_details in report.hash_algorithms.items() %}
+                    <div class="hash-card">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 style="color: #58a6ff; margin: 0;">
+                                <i class="fas fa-code"></i> {{ algo }}
+                            </h6>
+                            <span class="badge badge-{{ algo_details.crackability | lower }}">
+                                {{ algo_details.crackability }}
+                            </span>
+                        </div>
+                        <p class="small mb-2">{{ algo_details.description }}</p>
+                        
+                        <div class="row small">
+                            <div class="col-6">
+                                <small><strong>Time to Crack:</strong></small>
+                                <div style="color: {% if 'seconds' in algo_details.time_to_crack or 'minutes' in algo_details.time_to_crack %}#da3633{% elif 'hours' in algo_details.time_to_crack %}#d29922{% else %}#238636{% endif %};">
+                                    {{ algo_details.time_to_crack }}
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <small><strong>Iterations/Salt:</strong></small>
+                                <div style="color: #58a6ff;">{{ algo_details.iterations or 'N/A' }}</div>
+                            </div>
+                        </div>
+
+                        {% if algo_details.mitigation %}
+                        <div style="background: rgba(31, 110, 251, 0.1); padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.75rem; border-left: 3px solid #1f6feb;">
+                            <small><i class="fas fa-shield-alt"></i> <strong>Recommendation:</strong> {{ algo_details.mitigation }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="text-align: center; padding: 1rem; background: #161b22; border-radius: 0.5rem;">
+                        <small class="text-muted"><i class="fas fa-info-circle"></i> No hash algorithm data available</small>
+                    </div>
+                {% endif %}
+
+                <!-- 3. Crackability Summary -->
+                <h6 style="color: #d29922; margin: 1.5rem 0 1rem 0;">
+                    <i class="fas fa-zap"></i> Crackability Summary
+                </h6>
+                {% if report.crackability_summary %}
+                <div style="background: #161b22; padding: 1rem; border-radius: 0.95rem;">
+                    <p class="small mb-1">{{ report.crackability_summary }}</p>
+                </div>
+                {% endif %}
+
+                <!-- 4. Risk Factors -->
+                <h6 style="color: #d29922; margin: 1.5rem 0 1rem 0;">
+                    <i class="fas fa-warning"></i> Risk Factors Identified
+                </h6>
+                {% if report.risk_factors %}
+                <ul class="small">
+                    {% for factor in report.risk_factors %}
+                    <li>
+                        {% if factor.severity == 'CRITICAL' %}
+                        <i class="fas fa-exclamation-circle" style="color: #da3633;"></i>
+                        {% elif factor.severity == 'HIGH' %}
+                        <i class="fas fa-exclamation-triangle" style="color: #d29922;"></i>
+                        {% else %}
+                        <i class="fas fa-info-circle" style="color: #58a6ff;"></i>
+                        {% endif %}
+                        <strong>{{ factor.name }}</strong>: {{ factor.description }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+
+                <!-- 5. Recommendations -->
+                <h6 style="color: #d29922; margin: 1.5rem 0 1rem 0;">
+                    <i class="fas fa-lightbulb"></i> Recommended Actions
+                </h6>
+                <div style="background: rgba(35, 134, 54, 0.1); padding: 1rem; border-radius: 0.95rem; border-left: 4px solid #238636;">
+                    {% if report.recommended_actions %}
+                    <ol class="small mb-0">
+                        {% for action in report.recommended_actions %}
+                        <li>{{ action }}</li>
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <ul class="small mb-0">
+                        <li><strong>Change Password Immediately</strong> - Use a strong, unique password</li>
+                        <li><strong>Enable 2FA/MFA</strong> - Add multi-factor authentication to your account</li>
+                        <li><strong>Monitor Account Activity</strong> - Watch for unauthorized logins</li>
+                        <li><strong>Check Other Accounts</strong> - Verify you haven't reused this password elsewhere</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="panel">
+            <div class="panel-body" style="text-align: center; padding: 2rem;">
+                <i class="fas fa-inbox" style="font-size: 3rem; color: #8b949e; margin-bottom: 1rem; display: block;"></i>
+                <h5 style="color: #8b949e; margin-bottom: 0.5rem;">No Forensic Data</h5>
+                <p class="text-muted">No hash algorithm and password crackability analysis available yet.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- General Hash Security Info -->
+        <div class="panel">
+            <div class="panel-body" style="border-bottom: 1px solid var(--border);">
+                <h5 style="color: #58a6ff; margin: 0;"><i class="fas fa-book"></i> Hash Algorithm Reference Guide</h5>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <h6 style="color: #d29922; margin-bottom: 0.75rem;"><i class="fas fa-shield-alt"></i> Secure Algorithms</h6>
+                        <ul class="small text-muted">
+                            <li><strong>bcrypt</strong> - Adaptive hashing with salt, resistant to modern attacks</li>
+                            <li><strong>scrypt</strong> - Memory-hard function, excellent password security</li>
+                            <li><strong>Argon2</strong> - Winner of Password Hashing Competition, recommended standard</li>
+                            <li><strong>PBKDF2</strong> - Key derivation function with configurable iterations</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 style="color: #da3633; margin-bottom: 0.75rem;"><i class="fas fa-exclamation-triangle"></i> Weak Algorithms</h6>
+                        <ul class="small text-muted">
+                            <li><strong>MD5</strong> - Cryptographically broken, should never be used</li>
+                            <li><strong>SHA-1</strong> - Deprecated, vulnerable to collision attacks</li>
+                            <li><strong>SHA-256 (unsalted)</strong> - Rainbow table vulnerable, need salt</li>
+                            <li><strong>Plain text</strong> - No hashing, critical security risk</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
 {% endblock %}

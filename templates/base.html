@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}BocorCheck - OSINT Breach Monitor{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Dark Theme CSS -->
+    <style>
+        :root {
+            --bs-body-bg: #0d1117;
+            --bs-body-color: #c9d1d9;
+            --bs-border-color: #30363d;
+            --bs-info: #58a6ff;
+            --bs-danger: #f85149;
+            --bs-warning: #d29922;
+            --bs-success: #3fb950;
+        }
+        
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+        }
+        
+        .bg-dark {
+            background-color: #161b22 !important;
+        }
+        
+        .card {
+            background-color: #161b22;
+            border-color: #30363d;
+        }
+        
+        .card-header {
+            background-color: #21262d !important;
+            border-color: #30363d;
+        }
+        
+        .table-dark {
+            color: #c9d1d9;
+        }
+        
+        .table-dark thead th {
+            border-color: #30363d;
+            color: #58a6ff;
+            font-weight: 600;
+        }
+        
+        .table-dark tbody tr {
+            border-color: #30363d;
+        }
+        
+        .table-dark tbody tr:hover {
+            background-color: #21262d;
+        }
+        
+        .form-control,
+        .form-select {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            border-color: #30363d;
+        }
+        
+        .form-control:focus,
+        .form-select:focus {
+            background-color: #161b22;
+            color: #c9d1d9;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 0.25rem rgba(88, 166, 255, 0.25);
+        }
+        
+        .btn-outline-info {
+            color: #58a6ff;
+            border-color: #58a6ff;
+        }
+        
+        .btn-outline-info:hover {
+            background-color: #58a6ff;
+            border-color: #58a6ff;
+            color: #0d1117;
+        }
+        
+        .badge {
+            font-weight: 500;
+        }
+        
+        .progress {
+            background-color: #21262d;
+        }
+        
+        a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+        
+        a:hover {
+            color: #79c0ff;
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+    
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -231,9 +231,10 @@
         /* ECharts Heatmap Container */
         #breachHeatmapChart {
             width: 100%;
-            height: 450px;
+            height: 500px;
             border-radius: 0.95rem;
             background: #0d1117;
+            min-height: 500px;
         }
 
         /* Dark Theme for Leaflet */
@@ -965,6 +966,10 @@
     <!-- Leaflet JS -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
     
+    <!-- ECharts World Map Data -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-stat@1/dist/ecStat.min.js"></script>
+    
     <!-- Global Breach Heatmap Script -->
     <script>
         let breachMap = null;
@@ -1047,12 +1052,15 @@
 
         // Initialize Leaflet Map - Malaysia Focus
         function initBreachMap() {
+            console.log("Initializing breach map...");
+            
             if (breachMap) {
                 breachMap.remove();
             }
 
             // Center on Malaysia with zoom level 6
             breachMap = L.map('breachHeatmapMap').setView([4.2, 102.2], 6);
+            console.log("✓ Leaflet map initialized");
 
             // Dark tile layer 
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -1124,145 +1132,224 @@
             if (breachMarkers.length > 0) {
                 const group = new L.featureGroup(breachMarkers);
                 breachMap.fitBounds(group.getBounds(), { padding: [50, 50] });
+                console.log("✓ Map markers added and fitted:", breachMarkers.length, "markers");
+            } else {
+                console.warn("⚠ No breach markers to display");
             }
         }
 
         // Initialize ECharts Heatmap
         function initEChartsHeatmap() {
             const chartDom = document.getElementById('breachHeatmapChart');
-            if (!chartDom) return;
+            if (!chartDom) {
+                console.error("Heatmap container not found!");
+                return;
+            }
+
+            // Ensure container is visible before initializing
+            chartDom.style.display = 'block';
+
+            // Destroy previous chart instance if exists
+            const existingChart = echarts.getInstanceByDom(chartDom);
+            if (existingChart) {
+                existingChart.dispose();
+            }
 
             const myChart = echarts.init(chartDom, 'dark');
 
-            // Convert breach hotspots to intensity data for visualization
-            const intensityData = breachHotspots.map(hotspot => ({
-                name: hotspot.name,
-                value: [hotspot.lng, hotspot.lat, hotspot.breaches],
-                itemStyle: {
-                    color: hotspot.color
-                }
-            }));
-
-            const maxBreaches = Math.max(...breachHotspots.map(h => h.breaches));
-
-            const option = {
-                title: {
-                    text: 'Sengatan Data Breach Mengikut Negeri (Intensiti)',
-                    left: 'center',
-                    textStyle: {
-                        color: '#8b949e',
-                        fontSize: 14
-                    }
-                },
-                geo: {
-                    map: 'world',
-                    roam: true,
-                    center: [102.5, 4.5],
-                    zoom: 3.8,
-                    label: {
-                        emphasis: { show: false }
-                    },
+            // Wait for chart to be ready, then set option
+            setTimeout(() => {
+                // Convert breach hotspots to intensity data for visualization
+                const intensityData = breachHotspots.map(hotspot => ({
+                    name: hotspot.name,
+                    value: [hotspot.lng, hotspot.lat, hotspot.breaches],
                     itemStyle: {
-                        normal: {
-                            areaColor: '#1a2840',
-                            borderColor: '#4a5c8a'
-                        },
-                        emphasis: {
-                            areaColor: '#2a4080'
-                        }
+                        color: hotspot.color
                     }
-                },
-                tooltip: {
-                    trigger: 'item',
-                    formatter: function(param) {
-                        if (param.componentSubType === 'scatter') {
-                            return `<strong>${param.data.name}</strong><br/>
-                                Breach: ${param.data.value[2]}<br/>
-                                Lokasi: [${param.data.value[1].toFixed(2)}, ${param.data.value[0].toFixed(2)}]`;
-                        }
-                        return param.name;
-                    }
-                },
-                series: [
-                    {
-                        name: 'Heatmap Breach Intensity',
-                        type: 'effectScatter',
-                        coordinateSystem: 'geo',
-                        data: intensityData,
-                        symbolSize: function (val) {
-                            // Size based on breach count (5-40px)
-                            return Math.min(40, 5 + (val[2] / maxBreaches) * 35);
-                        },
-                        showEffectOn: 'render',
-                        rippleEffect: {
-                            brushType: 'stroke',
-                            scale: 3,
-                            period: 4
-                        },
-                        hoverAnimation: true,
-                        label: {
-                            formatter: '{b}',
-                            position: 'right',
-                            show: false
-                        },
-                        itemStyle: {
-                            shadowBlur: 10,
-                            shadowColor: '#333'
-                        },
-                        zlevel: 1
-                    },
-                    {
-                        name: 'Breach Hotspots',
-                        type: 'scatter',
-                        coordinateSystem: 'geo',
-                        data: intensityData,
-                        symbolSize: function (val) {
-                            return Math.min(30, 4 + (val[2] / maxBreaches) * 25);
-                        },
-                        label: {
-                            formatter: function(param) {
-                                return param.data.name.split('(')[0].trim();
-                            },
-                            position: 'top',
-                            show: true,
-                            fontSize: 10,
-                            color: '#8b949e'
-                        },
-                        itemStyle: {
-                            borderColor: '#fff',
-                            borderWidth: 2
-                        },
-                        emphasis: {
-                            label: {
-                                show: true,
-                                fontSize: 11,
-                                color: '#fff'
+                }));
+
+                const maxBreaches = Math.max(...breachHotspots.map(h => h.breaches), 1);
+
+                const option = {
+                    title: [
+                        {
+                            text: '🔴 Global Data Breach Hotspot Analysis',
+                            left: 'center',
+                            top: '2%',
+                            textStyle: {
+                                color: '#58a6ff',
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                fontFamily: "'Outfit', sans-serif"
                             }
                         },
-                        zlevel: 2
+                        {
+                            text: 'Real-time Intelligence: Breach Concentration by Geographic Location & Severity',
+                            left: 'center',
+                            top: '7%',
+                            textStyle: {
+                                color: '#8b949e',
+                                fontSize: 12,
+                                fontStyle: 'italic'
+                            }
+                        }
+                    ],
+                    tooltip: {
+                        trigger: 'item',
+                        backgroundColor: 'rgba(13, 17, 23, 0.95)',
+                        borderColor: '#58a6ff',
+                        borderWidth: 1,
+                        textStyle: {
+                            color: '#c9d1d9',
+                            fontSize: 12
+                        },
+                        formatter: function(param) {
+                            if (param.seriesType === 'effectScatter' || param.seriesType === 'scatter') {
+                                const intensity = param.data.value[2];
+                                const riskLevel = intensity >= maxBreaches * 0.7 ? '🔴 CRITICAL' : 
+                                                 intensity >= maxBreaches * 0.4 ? '🟠 HIGH' : '🟡 MEDIUM';
+                                return `<div style="padding: 8px;">
+                                    <strong style="color: #58a6ff;">${param.data.name}</strong><br/>
+                                    <span style="color: #d29922;">Incidents:</span> ${param.data.value[2]}<br/>
+                                    <span style="color: #58a6ff;">Coordinates:</span> ${param.data.value[1].toFixed(3)}°, ${param.data.value[0].toFixed(3)}°<br/>
+                                    <span style="color: #238636;">${riskLevel}</span>
+                                </div>`;
+                            }
+                            return param.name;
+                        }
+                    },
+                    visualMap: {
+                        min: 0,
+                        max: maxBreaches,
+                        splitNumber: 5,
+                        inRange: {
+                            color: ['#238636', '#d29922', '#da3633']
+                        },
+                        orient: 'vertical',
+                        right: '2%',
+                        top: 'center',
+                        text: ['High', 'Low'],
+                        textStyle: {
+                            color: '#8b949e',
+                            fontSize: 11
+                        },
+                        itemWidth: 20,
+                        itemHeight: 140
+                    },
+                    series: [
+                        {
+                            name: 'Breach Hotspots',
+                            type: 'scatter',
+                            coordinateSystem: 'cartesian2d',
+                            data: intensityData.map(d => [d.value[0], d.value[1], d.value[2]]),
+                            symbolSize: function (val) {
+                                return Math.min(45, 10 + (val[2] / maxBreaches) * 35);
+                            },
+                            label: {
+                                formatter: function(param) {
+                                    const hotspot = breachHotspots.find(h => h.name === param.name);
+                                    return hotspot ? hotspot.name.split('(')[0].trim() : '';
+                                },
+                                position: 'right',
+                                show: true,
+                                fontSize: 11,
+                                fontWeight: 'bold',
+                                color: '#58a6ff',
+                                backgroundColor: 'transparent'
+                            },
+                            itemStyle: {
+                                shadowBlur: 15,
+                                shadowColor: '#58a6ff',
+                                shadowOffsetX: 0,
+                                shadowOffsetY: 0,
+                                opacity: 0.8,
+                                borderColor: '#58a6ff',
+                                borderWidth: 1
+                            },
+                            emphasis: {
+                                label: {
+                                    show: true,
+                                    color: '#58a6ff',
+                                    borderColor: '#58a6ff'
+                                },
+                                itemStyle: {
+                                    shadowBlur: 25,
+                                    shadowColor: '#58a6ff',
+                                    opacity: 1,
+                                    borderWidth: 2
+                                }
+                            }
+                        }
+                    ],
+                    xAxis: {
+                        type: 'value',
+                        name: 'Longitude',
+                        nameTextStyle: {
+                            color: '#58a6ff',
+                            fontSize: 12,
+                            fontWeight: 'bold'
+                        },
+                        axisLabel: {
+                            color: '#8b949e',
+                            fontSize: 10
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#30363d',
+                                width: 1
+                            }
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: '#161b22',
+                                width: 0.5
+                            }
+                        }
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Latitude',
+                        nameTextStyle: {
+                            color: '#58a6ff',
+                            fontSize: 12,
+                            fontWeight: 'bold'
+                        },
+                        axisLabel: {
+                            color: '#8b949e',
+                            fontSize: 10
+                        },
+                        axisLine: {
+                            lineStyle: {
+                                color: '#30363d',
+                                width: 1
+                            }
+                        },
+                        splitLine: {
+                            lineStyle: {
+                                color: '#161b22',
+                                width: 0.5
+                            }
+                        }
+                    },
+                    grid: {
+                        containLabel: true,
+                        backgroundColor: 'transparent',
+                        borderColor: '#30363d',
+                        borderWidth: 1
                     }
-                ],
-                visualMap: {
-                    min: 0,
-                    max: maxBreaches,
-                    splitNumber: 5,
-                    inRange: {
-                        color: ['#50a3ba', '#eac736', '#d94e5d']
-                    },
-                    textStyle: {
-                        color: '#8b949e'
-                    },
-                    bottom: 30,
-                    left: 10,
-                    dimension: 2
-                }
-            };
+                };
 
-            window.addEventListener('resize', function() {
-                myChart.resize();
-            });
+                myChart.setOption(option);
 
-            myChart.setOption(option);
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    if (myChart && currentMapView === 'heatmap') {
+                        myChart.resize();
+                    }
+                });
+
+                console.log("✓ Heatmap initialized successfully with", intensityData.length, "data points");
+            }, 100);
         }
 
         // Toggle between map and heatmap views
@@ -1271,15 +1358,22 @@
             const mapContainer = document.getElementById('breachHeatmapMap');
             const chartContainer = document.getElementById('breachHeatmapChart');
 
+            console.log("Switching to view:", view);
+
             if (view === 'map') {
                 mapContainer.style.display = 'block';
                 chartContainer.style.display = 'none';
                 if (!breachMap) {
+                    console.log("Map not initialized, initializing now...");
                     setTimeout(initBreachMap, 100);
+                } else {
+                    console.log("✓ Map already initialized");
+                    breachMap.invalidateSize(); // Force map to recalculate size
                 }
-            } else {
+            } else if (view === 'heatmap') {
                 mapContainer.style.display = 'none';
                 chartContainer.style.display = 'block';
+                console.log("Initializing heatmap...");
                 initEChartsHeatmap();
             }
         }
@@ -1301,7 +1395,15 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            initBreachMap();
+            console.log("🔍 BocorCheck Heatmap Initialization Started");
+            console.log("📍 Breach Hotspots loaded:", breachHotspots.length);
+            
+            try {
+                initBreachMap();
+                console.log("✓ Initial map view loaded successfully");
+            } catch (error) {
+                console.error("✗ Error initializing map:", error);
+            }
         });
     </script>
 

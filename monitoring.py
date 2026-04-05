@@ -157,7 +157,7 @@ def get_breach_timeline(investigation_id: int) -> List[Dict[str, Any]]:
                     br.hash_algorithm,
                     br.crackability
                 FROM breach_timeline bt
-                LEFT JOIN breach_results br ON bt.breach_name = br.breach_name
+                LEFT JOIN breach_results br ON bt.breach_name = br.breach_name COLLATE utf8mb4_unicode_ci
                 WHERE bt.investigation_id = %s
                 ORDER BY bt.breach_date DESC
             """, (investigation_id,))

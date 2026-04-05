@@ -9,6 +9,11 @@ from mysql.connector import connect, Error as MySQLError
 import os
 import requests
 import json
+from telegram.ext import CommandHandler
+from telegram.ext import Application
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_db_config() -> dict:
@@ -457,3 +462,25 @@ def mark_finding_resolved(finding_id: int, user_id: int) -> Tuple[bool, str]:
             
     except MySQLError as e:
         return False, f"❌ Error: {str(e)}"
+
+
+# ============================================================================
+# COMMAND HANDLERS
+# ============================================================================
+
+def start(update, context):
+    """Start command handler"""
+    update.message.reply_text("Hello! This is the Dark Web Monitoring Integration Module. Use /check to search for user credentials on the dark web.")
+
+def check(update, context):
+    """Check command handler"""
+    user_input = update.message.text
+    if user_input.startswith("/check"):
+        query_term = user_input[6:]
+        findings = check_darkweb_mock(query_term)
+        update.message.reply_text(f"Mock findings for {query_term}: {findings}")
+    else:
+        update.message.reply_text("Please use /check followed by a query term (email, phone, etc.)")
+
+
+application = Application.builder().token("YOUR_BOT_TOKEN").build()

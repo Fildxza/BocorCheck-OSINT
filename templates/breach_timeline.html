@@ -1,236 +1,402 @@
 {% extends "base.html" %}
 
-{% block title %}Breach Timeline Analysis{% endblock %}
+{% block title %}SOC Breach Timeline Analysis{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1>📅 Breach Timeline Analysis</h1>
-            <p class="text-muted">Forensic timeline: when breaches occurred vs. when discovered</p>
-            <p><strong>Email:</strong> {{ investigation.email }}</p>
-        </div>
-        <a href="/history" class="btn btn-secondary">← Back to History</a>
+<div class="soc-timeline-dashboard" style="background: linear-gradient(to bottom, #001f3f 0%, #0a1428 100%); min-height: 100vh; color: #e0f4ff;">
+    <style>
+        /* SOC Dashboard Professional Styling */
+        .soc-timeline-dashboard {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --soc-primary: #00d4ff;
+            --soc-danger: #ff3860;
+            --soc-warning: #ffb700;
+            --soc-success: #00a870;
+            --soc-dark: #0a1428;
+            --soc-card: #1a2840;
+        }
+        
+        .soc-header {
+            background: linear-gradient(135deg, #001f3f 0%, #003d82 100%);
+            border-bottom: 2px solid var(--soc-primary);
+            padding: 30px 0;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.15);
+        }
+        
+        .soc-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .soc-kpi-card {
+            background: linear-gradient(135deg, var(--soc-card) 0%, #213556 100%);
+            border: 2px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .soc-kpi-card:hover {
+            border-color: var(--soc-primary);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        .soc-kpi-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: var(--soc-primary);
+            margin: 10px 0;
+        }
+        
+        .soc-kpi-label {
+            font-size: 0.9em;
+            color: #7fb3d5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        
+        .soc-chart-container {
+            background: linear-gradient(135deg, var(--soc-card) 0%, #213556 100%);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .timeline-vertical {
+            position: relative;
+            padding: 40px 0;
+        }
+        
+        .timeline-vertical::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(to bottom, #00d4ff, #003d82);
+        }
+        
+        @media (max-width: 768px) {
+            .timeline-vertical::before {
+                left: 30px;
+            }
+        }
+        
+        .timeline-event {
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .timeline-event:nth-child(odd) .event-content {
+            margin-left: 0;
+            margin-right: auto;
+        }
+        
+        .timeline-event:nth-child(odd) .event-dot {
+            left: calc(50% - 15px);
+        }
+        
+        .timeline-event:nth-child(even) .event-content {
+            margin-left: auto;
+            margin-right: 0;
+        }
+        
+        .timeline-event:nth-child(even) .event-dot {
+            left: calc(50% - 15px);
+        }
+        
+        @media (max-width: 768px) {
+            .timeline-event:nth-child(odd) .event-content,
+            .timeline-event:nth-child(even) .event-content {
+                margin-left: 0;
+                margin-right: auto;
+                width: calc(100% - 80px);
+            }
+            
+            .timeline-event .event-dot {
+                left: 30px !important;
+            }
+        }
+        
+        .event-dot {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, var(--soc-primary), #004a75);
+            border: 3px solid var(--soc-dark);
+            border-radius: 50%;
+            top: 20px;
+            z-index: 10;
+        }
+        
+        .event-dot.danger {
+            background: radial-gradient(circle, #ff3860, #8b1a35);
+            box-shadow: 0 0 20px rgba(255, 56, 96, 0.5);
+        }
+        
+        .event-dot.warning {
+            background: radial-gradient(circle, #ffb700, #7f5a00);
+            box-shadow: 0 0 20px rgba(255, 183, 0, 0.5);
+        }
+        
+        .event-dot.success {
+            background: radial-gradient(circle, #00a870, #004a35);
+            box-shadow: 0 0 20px rgba(0, 168, 112, 0.5);
+        }
+        
+        .event-content {
+            background: linear-gradient(135deg, #1a3a52 0%, #0f2844 100%);
+            border: 2px solid var(--soc-primary);
+            border-radius: 10px;
+            padding: 25px;
+            width: calc(50% - 40px);
+            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.15);
+            transition: all 0.3s ease;
+        }
+        
+        .event-content:hover {
+            border-color: #ffb700;
+            box-shadow: 0 12px 32px rgba(255, 183, 0, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        .event-content.danger {
+            border-color: #ff3860;
+        }
+        
+        .event-content.warning {
+            border-color: #ffb700;
+        }
+        
+        .event-content.success {
+            border-color: #00a870;
+        }
+        
+        .breach-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: var(--soc-primary);
+            margin-bottom: 10px;
+        }
+        
+        .breach-date {
+            font-size: 0.9em;
+            color: #7fb3d5;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .severity-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: var(--soc-dark);
+        }
+        
+        .severity-badge.danger { background-color: var(--soc-danger); }
+        .severity-badge.warning { background-color: var(--soc-warning); }
+        .severity-badge.success { background-color: var(--soc-success); }
+        
+        .data-list {
+            padding-left: 20px;
+            list-style: none;
+        }
+        
+        .data-list li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 5px;
+            color: #a2d5f2;
+        }
+        
+        .data-list li::before {
+            content: '⬢';
+            position: absolute;
+            left: 0;
+            color: var(--soc-primary);
+            font-size: 0.8em;
+        }
+    </style>
+
+<div class="container-fluid soc-timeline-dashboard">
+    <div class="soc-header text-center">
+        <h1 class="display-4" style="color: var(--soc-primary); font-weight: bold;">{{ tr('SOC Breach Timeline Analysis') }}</h1>
+        <p class="lead" style="color: #a2d5f2;">{{ tr('Forensic analysis of breach occurrences and discovery gaps for') }} <strong>{{ investigation.name }}</strong></p>
     </div>
 
-    <!-- Timeline Interactive Visualization -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>🗓️ Timeline View</h5>
+    <!-- KPI Dashboard -->
+    <div class="soc-kpi-grid">
+        <div class="soc-kpi-card">
+            <div class="soc-kpi-label">{{ tr('Total Breaches Recorded') }}</div>
+            <div class="soc-kpi-value">{{ timeline_stats.total_breaches or 0 }}</div>
         </div>
-        <div class="card-body">
-            <canvas id="timelineCanvas" height="300"></canvas>
+        <div class="soc-kpi-card">
+            <div class="soc-kpi-label">{{ tr('Avg. Discovery Time (Days)') }}</div>
+            <div class="soc-kpi-value">{{ timeline_stats.avg_discovery_days or 'N/A' }}</div>
+        </div>
+        <div class="soc-kpi-card">
+            <div class="soc-kpi-label">{{ tr('Avg. Risk Score') }}</div>
+            <div class="soc-kpi-value">{{ timeline_stats.avg_risk_score or 'N/A' }}</div>
+        </div>
+        <div class="soc-kpi-card">
+            <div class="soc-kpi-label">{{ tr('Most Recent Breach') }}</div>
+            <div class="soc-kpi-value" style="font-size: 1.5em;">{{ timeline_stats.newest_breach.strftime('%Y-%m-%d') if timeline_stats.newest_breach else 'N/A' }}</div>
         </div>
     </div>
 
-    <!-- Detailed Breach Timeline Table -->
-    <div class="card">
-        <div class="card-header">
-            <h5>📊 Detailed Timeline Data</h5>
-        </div>
-        <div class="card-body">
-            {% if timeline %}
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead>
-                        <tr class="table-dark">
-                            <th>Breach Name</th>
-                            <th>Occurrence Date</th>
-                            <th>Discovery Date</th>
-                            <th>Days to Discover</th>
-                            <th>Status</th>
-                            <th>Risk Change</th>
-                            <th>Response Time</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for event in timeline %}
-                        <tr>
-                            <td>
-                                <strong>{{ event.breach_name }}</strong>
-                                {% if event.data_exposed %}
-                                <br><small class="text-muted">{{ event.data_exposed }}</small>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.breach_date %}
-                                    {{ event.breach_date.strftime('%Y-%m-%d') }}
-                                {% else %}
-                                    <span class="text-warning">Unknown</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.discovery_date %}
-                                    {{ event.discovery_date.strftime('%Y-%m-%d') }}
-                                {% else %}
-                                    <span class="text-warning">Unknown</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.time_to_discovery is defined %}
-                                    {{ event.time_to_discovery }} days
-                                    {% if event.discovery_status == 'Quick' %}
-                                        <span class="badge badge-success">Quick</span>
-                                    {% elif event.discovery_status == 'Delayed' %}
-                                        <span class="badge badge-danger">Delayed!</span>
-                                    {% elif event.discovery_status == 'Normal' %}
-                                        <span class="badge badge-info">Normal</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.status == 'confirmed' %}
-                                    <span class="badge badge-danger">Confirmed</span>
-                                {% elif event.status == 'rumored' %}
-                                    <span class="badge badge-warning">Rumored</span>
-                                {% elif event.status == 'patched' %}
-                                    <span class="badge badge-success">Patched</span>
-                                {% else %}
-                                    <span class="badge badge-secondary">{{ event.status }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.current_risk_score and event.initial_risk_score %}
-                                    <strong>{{ event.initial_risk_score }}</strong> → <strong>{{ event.current_risk_score }}</strong>
-                                    {% if event.current_risk_score > event.initial_risk_score %}
-                                        <span class="text-danger">📈</span>
-                                    {% elif event.current_risk_score < event.initial_risk_score %}
-                                        <span class="text-success">📉</span>
-                                    {% else %}
-                                        <span class="text-muted">→</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">N/A</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if event.crackability %}
-                                    <small>{{ event.crackability }}</small>
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+    <!-- Breach Timeline Chart -->
+    <div class="soc-chart-container">
+        <h2 class="text-center" style="color: var(--soc-primary); margin-bottom: 20px;">{{ tr('Breaches Over Time') }}</h2>
+        <canvas id="breachTimelineChart"></canvas>
+    </div>
 
-            <!-- Forensic Analysis Summary -->
-            <div class="alert alert-info mt-4">
-                <h6>🔍 Forensic Timeline Insights:</h6>
-                <ul>
-                    <li><strong>Total Breaches:</strong> {{ timeline|length }}</li>
-                    <li><strong>Average Discovery Time:</strong> 
-                        {% set total_days = timeline|map(attribute='time_to_discovery')|list|sum %}
-                        {% if total_days %}
-                            {{ (total_days / timeline|length)|int }} days
+    <!-- Vertical Timeline -->
+    <div class="timeline-vertical">
+        {% for event in timeline_data %}
+        <div class="timeline-event">
+            {% set severity_class = 'success' if event.current_risk_score < 40 else 'warning' if event.current_risk_score < 75 else 'danger' %}
+            <div class="event-dot {{ severity_class }}"></div>
+            <div class="event-content {{ severity_class }}">
+                <div class="breach-name">{{ event.breach_name }}</div>
+                <div class="breach-date">
+                    <strong>{{ tr('Breach Date') }}:</strong> {{ event.breach_date.strftime('%Y-%m-%d') if event.breach_date else 'Unknown' }} | 
+                    <strong>{{ tr('Discovery Date') }}:</strong> {{ event.discovery_date.strftime('%Y-%m-%d') if event.discovery_date else 'Unknown' }}
+                </div>
+                <div class="severity-badge {{ severity_class }}">
+                    {{ tr('Risk Score') }}: {{ event.current_risk_score }}
+                </div>
+                
+                <div class="mt-3">
+                    <p><strong>{{ tr('Time to Discovery') }}:</strong> 
+                        <span class="badge bg-info">{{ event.time_to_discovery }} {{ tr('days') }}</span>
+                    </p>
+                    <p><strong>{{ tr('Exposed Data') }}:</strong></p>
+                    <ul class="data-list">
+                        {% if event.data_exposed %}
+                            {% for item in event.data_exposed.split(',') %}
+                                <li>{{ item.strip() }}</li>
+                            {% endfor %}
                         {% else %}
-                            Unknown
+                            <li>{{ tr('Data not specified') }}</li>
                         {% endif %}
-                    </li>
-                    <li><strong>Confirmed:</strong> {{ timeline|selectattr('status', 'equalto', 'confirmed')|list|length }}</li>
-                    <li><strong>Current Risk Assessment:</strong> 
-                        {% if investigation.risk_level == 'HIGH' %}
-                            <span class="badge badge-danger">HIGH RISK</span> - Multiple confirmed breaches detected
-                        {% elif investigation.risk_level == 'MEDIUM' %}
-                            <span class="badge badge-warning">MEDIUM RISK</span> - Some exposure confirmed
-                        {% else %}
-                            <span class="badge badge-success">LOW RISK</span> - Minimal exposure
-                        {% endif %}
-                    </li>
-                </ul>
+                    </ul>
+                </div>
             </div>
-
-            {% else %}
-            <p class="text-muted align-center">No timeline events recorded yet for this investigation.</p>
-            {% endif %}
         </div>
-    </div>
-
-    <!-- Next Steps -->
-    <div class="card mt-4">
-        <div class="card-header bg-primary">
-            <h5 class="text-white">📋 Recommended Next Steps</h5>
+        {% else %}
+        <div class="text-center p-5">
+            <h3 style="color: #a2d5f2;">{{ tr('No breach timeline data available for this investigation yet.') }}</h3>
+            <p>{{ tr('Run a scan or manually add breaches to populate the timeline.') }}</p>
         </div>
-        <div class="card-body">
-            <ol>
-                <li><strong>Analyze Data Types</strong> - Check what specific data was exposed <a href="/analysis/data-types/{{ investigation.id }}" class="btn btn-sm btn-info">Analyze</a></li>
-                <li><strong>Hash Vulnerability Check</strong> - See password crackability <a href="/analysis/hash-check/{{ investigation.id }}" class="btn btn-sm btn-info">Check</a></li>
-                <li><strong>Dark Web Monitoring</strong> - Detect credentials on dark web <a href="/darkweb/check/{{ investigation.id }}" class="btn btn-sm btn-info">Scan</a></li>
-                <li><strong>Mitigation Planning</strong> - Get action plan for each breach <a href="/mitigation" class="btn btn-sm btn-warning">Mitigate</a></li>
-            </ol>
-        </div>
+        {% endfor %}
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
 <script>
-// Timeline visualization using Chart.js
-const timelineData = {{ timeline|tojson }};
+document.addEventListener('DOMContentLoaded', function () {
+    const ctx = document.getElementById('breachTimelineChart').getContext('2d');
+    
+    const yearlyData = {{ timeline_stats.yearly_breakdown | tojson }};
+    
+    const labels = yearlyData.map(d => d.year);
+    const breachCounts = yearlyData.map(d => d.breach_count);
+    const avgRiskScores = yearlyData.map(d => d.avg_risk);
 
-if (timelineData.length > 0) {
-    const ctx = document.getElementById('timelineCanvas').getContext('2d');
-    
-    const labels = timelineData.map(e => e.breach_name);
-    const breachDates = timelineData.map(e => new Date(e.breach_date).getTime());
-    const discoveryDates = timelineData.map(e => e.discovery_date ? new Date(e.discovery_date).getTime() : null);
-    
-    new Chart(ctx, {
-        type: 'scatter',
+    const timelineChart = new Chart(ctx, {
+        type: 'bar',
         data: {
+            labels: labels,
             datasets: [
                 {
-                    label: 'Breach Occurrence',
-                    data: timelineData.map((e, i) => ({
-                        x: new Date(e.breach_date).getTime(),
-                        y: i,
-                        label: e.breach_name
-                    })),
-                    pointRadius: 8,
-                    pointBackgroundColor: 'rgba(255, 99, 132, 0.8)',
-                    pointBorderColor: '#ff0000',
-                    pointBorderWidth: 2
+                    label: '{{ tr("Number of Breaches") }}',
+                    data: breachCounts,
+                    backgroundColor: 'rgba(0, 212, 255, 0.6)',
+                    borderColor: 'rgba(0, 212, 255, 1)',
+                    borderWidth: 2,
+                    yAxisID: 'y',
                 },
                 {
-                    label: 'Discovery Date',
-                    data: timelineData.filter(e => e.discovery_date).map((e, i) => ({
-                        x: new Date(e.discovery_date).getTime(),
-                        y: i,
-                        label: e.breach_name
-                    })),
-                    pointRadius: 8,
-                    pointBackgroundColor: 'rgba(54, 162, 235, 0.8)',
-                    pointBorderColor: '#0066ff',
-                    pointBorderWidth: 2
+                    label: '{{ tr("Average Risk Score") }}',
+                    data: avgRiskScores,
+                    backgroundColor: 'rgba(255, 56, 96, 0.6)',
+                    borderColor: 'rgba(255, 56, 96, 1)',
+                    borderWidth: 2,
+                    type: 'line',
+                    yAxisID: 'y1',
+                    tension: 0.4,
                 }
             ]
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: { display: true },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return new Date(context.raw.x).toLocaleDateString();
-                        }
-                    }
-                }
-            },
+            maintainAspectRatio: false,
             scales: {
                 x: {
-                    type: 'linear',
-                    title: { display: true, text: 'Date' }
+                    title: {
+                        display: true,
+                        text: '{{ tr("Year") }}',
+                        color: '#a2d5f2',
+                        font: { size: 14 }
+                    },
+                    ticks: { color: '#a2d5f2' },
+                    grid: { color: 'rgba(162, 213, 242, 0.1)' }
                 },
                 y: {
-                    title: { display: true, text: 'Breach' }
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: '{{ tr("Breach Count") }}',
+                        color: '#a2d5f2',
+                        font: { size: 14 }
+                    },
+                    ticks: { color: '#a2d5f2' },
+                    grid: { color: 'rgba(162, 213, 242, 0.1)' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: '{{ tr("Average Risk Score") }}',
+                        color: '#a2d5f2',
+                        font: { size: 14 }
+                    },
+                    ticks: { color: '#a2d5f2' },
+                    grid: { drawOnChartArea: false } 
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e0f4ff',
+                        font: { size: 14 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: '#0a1428',
+                    titleColor: '#00d4ff',
+                    bodyColor: '#e0f4ff',
+                    borderColor: '#00d4ff',
+                    borderWidth: 1
                 }
             }
         }
     });
-}
+});
 </script>
 {% endblock %}

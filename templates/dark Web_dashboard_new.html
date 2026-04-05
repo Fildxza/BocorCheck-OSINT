@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}Dark Web Monitoring{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dark Web Monitoring - OSINT</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-main: #0d1117;
+            --bg-accent: #161b22;
+            --panel: #0d1117;
+            --ink: #c9d1d9;
+            --muted: #8b949e;
+            --primary: #58a6ff;
+            --primary-soft: #1f6feb;
+            --danger-soft: #da3633;
+            --warning-soft: #d29922;
+            --success-soft: #238636;
+            --border: #30363d;
+            --shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "DM Sans", sans-serif;
+            color: var(--ink);
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+        }
+
+        .shell {
+            max-width: 1400px;
+            margin: 2.5rem auto;
+            padding: 0 1rem;
+            animation: revealUp 0.55s ease-out;
+        }
+
+        .hero {
+            background: linear-gradient(120deg, #da3633 0%, #b82e2b 50%, #8b2e2b 100%);
+            border-radius: 1.2rem;
+            padding: 1.4rem 1.5rem;
+            color: #f0f6fc;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.1rem;
+            border-left: 4px solid #ff7f7f;
+        }
+
+        .hero h1 {
+            font-family: "Outfit", sans-serif;
+            font-weight: 700;
+            margin-bottom: 0.35rem;
+            letter-spacing: 0.2px;
+            font-size: 2rem;
+        }
+
+        .hero p {
+            margin-bottom: 0.3rem;
+            color: rgba(240, 246, 252, 0.85);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 1.2rem;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            animation: fadeIn 0.35s ease-out;
+        }
+
+        .panel-body {
+            padding: 1.4rem;
+        }
+
+        .finding-card {
+            border: 1px solid var(--border);
+            border-radius: 0.95rem;
+            background: #161b22;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            animation: fadeIn 0.35s ease-out;
+            border-left: 4px solid #da3633;
+        }
+
+        .finding-card.high-risk {
+            border-left-color: #da3633;
+        }
+
+        .finding-card.medium-risk {
+            border-left-color: #d29922;
+        }
+
+        .finding-card.low-risk {
+            border-left-color: #238636;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1f6feb 0%, #1845d5 100%);
+            border: none;
+            border-radius: 0.8rem;
+            padding: 0.72rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0d47a1 0%, #1a237e 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(31, 110, 251, 0.3);
+            color: #f0f6fc;
+        }
+
+        .btn-danger {
+            background: #da3633;
+            border: none;
+            border-radius: 0.8rem;
+            padding: 0.72rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-danger:hover {
+            background: #b82e2b;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(218, 54, 51, 0.3);
+        }
+
+        .badge-high { background: #da3633 !important; color: #f0f6fc !important; }
+        .badge-medium { background: #d29922 !important; color: #0d1117 !important; }
+        .badge-low { background: #238636 !important; color: #f0f6fc !important; }
+
+        .risk-box {
+            border-radius: 0.95rem;
+            padding: 1.2rem;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .risk-box.high-risk {
+            background: rgba(218, 54, 51, 0.15);
+            border-left: 4px solid #da3633;
+            color: #ff7f7f;
+        }
+
+        .risk-box.no-findings {
+            background: rgba(35, 134, 54, 0.15);
+            border-left: 4px solid #238636;
+            color: #58a6ff;
+        }
+
+        .alert {
+            border-radius: 0.95rem;
+        }
+
+        .alert-danger {
+            background: rgba(218, 54, 51, 0.15);
+            border-color: #da3633;
+            color: #ff7f7f;
+        }
+
+        .alert-success {
+            background: rgba(35, 134, 54, 0.15);
+            border-color: #238636;
+            color: #58a6ff;
+        }
+
+        .text-muted {
+            color: var(--muted) !important;
+        }
+
+        @keyframes revealUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <!-- Hero Section -->
+        <div class="hero">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1><i class="fas fa-user-secret"></i> Dark Web Monitoring</h1>
+                    <p>Check if credentials appear on dark web, pastebin, or exposed data sites</p>
+                    <span class="badge bg-light text-dark px-3 py-2"><i class="fas fa-envelope"></i> {{ email }}</span>
+                </div>
+                <form method="POST" class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-search"></i> Scan Dark Web Now
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Risk Assessment Card -->
+        <div class="panel mb-4">
+            <div class="panel-body" style="border-bottom: 1px solid var(--border);">
+                <h5 style="color: #ff7f7f; margin: 0;"><i class="fas fa-exclamation-triangle"></i> Dark Web Exposure Risk</h5>
+            </div>
+            <div class="panel-body">
+                {% if findings|length > 0 %}
+                    <div class="risk-box high-risk">
+                        <h4><i class="fas fa-circle" style="color: #da3633;"></i> FINDINGS DETECTED</h4>
+                        <p>Your credentials appear to be exposed on dark web or public paste sites.</p>
+                        <div style="background: rgba(218, 54, 51, 0.2); padding: 0.75rem; border-radius: 0.5rem; margin-top: 1rem;">
+                            <strong><i class="fas fa-exclamation"></i> {{ findings|length }} finding(s) detected</strong> - Immediate action required
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="risk-box no-findings">
+                        <h4><i class="fas fa-check-circle" style="color: #238636;"></i> No Findings Detected</h4>
+                        <p>Good news! Your credentials don't appear on publicly known dark web sources.</p>
+                        <p class="text-muted"><small><i class="fas fa-info-circle"></i> Note: This scan checks common known sources. For comprehensive monitoring, consider premium dark web monitoring services.</small></p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Findings List -->
+        {% if findings|length > 0 %}
+        <div class="panel">
+            <div class="panel-body" style="border-bottom: 1px solid var(--border);">
+                <h5 style="color: #58a6ff; margin: 0;"><i class="fas fa-list"></i> Detected Findings</h5>
+                <small class="text-muted">{{ findings|length }} findings require your attention</small>
+            </div>
+            <div class="panel-body">
+                {% for finding in findings %}
+                <div class="finding-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <h6 style="color: #58a6ff; margin: 0; font-weight: 700;">
+                                <i class="fas fa-exclamation-circle"></i> {{ finding.source }}
+                            </h6>
+                            <small class="text-muted">{{ finding.date }}</small>
+                        </div>
+                        <span class="badge badge-high">
+                            <i class="fas fa-fire"></i> {{ finding.risk_level | upper }}
+                        </span>
+                    </div>
+                    
+                    {% if finding.description %}
+                    <p class="mb-2">{{ finding.description }}</p>
+                    {% endif %}
+
+                    {% if finding.username %}
+                    <div style="background: #0d1117; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.75rem;">
+                        <small><strong>Username:</strong> <code style="color: #58a6ff;">{{ finding.username }}</code></small>
+                    </div>
+                    {% endif %}
+
+                    {% if finding.exposed_data %}
+                    <div style="margin-bottom: 0.75rem;">
+                        <small><strong>Exposed Data:</strong></small>
+                        <div style="margin-top: 0.5rem;">
+                            {% for data in finding.exposed_data.split(',') %}
+                            <span class="badge badge-medium" style="margin-right: 0.25rem; margin-bottom: 0.25rem;">{{ data.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if finding.action_required %}
+                    <div style="background: rgba(210, 153, 34, 0.1); padding: 0.75rem; border-radius: 0.5rem; border-left: 3px solid #d29922;">
+                        <small><strong><i class="fas fa-bolt"></i> Action Required:</strong> {{ finding.action_required }}</small>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <!-- Recommendations -->
+                <div style="background: rgba(31, 110, 251, 0.1); padding: 1rem; border-radius: 0.95rem; border-left: 4px solid #1f6feb; margin-top: 1.5rem;">
+                    <h6 style="color: #58a6ff; margin-bottom: 0.75rem;"><i class="fas fa-lightbulb"></i> Recommended Actions</h6>
+                    <ol class="mb-0">
+                        <li><strong>Change Your Passwords Immediately</strong> - Use strong, unique passwords for all accounts</li>
+                        <li><strong>Enable 2FA/MFA</strong> - Add extra security layer to all critical accounts</li>
+                        <li><strong>Monitor Credit Bureaus</strong> - Check for unauthorized access or identity theft</li>
+                        <li><strong>Consider Credit Freeze</strong> - Prevent fraudulent account creation</li>
+                        <li><strong>Use Password Manager</strong> - Generate and store complex passwords securely</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- No Findings Message -->
+        <div class="panel">
+            <div class="panel-body">
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-shield-alt" style="font-size: 3rem; color: #238636; margin-bottom: 1rem; display: block;"></i>
+                    <h5 style="color: #58a6ff; margin-bottom: 0.5rem;">No Dark Web Findings</h5>
+                    <p class="text-muted">Your email and credentials are safe on publicly monitored dark web sources.</p>
+                    <p class="text-muted"><small class="text-muted">Last scanned: {{ scan_date }}</small></p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Additional Resources -->
+        <div class="panel mt-4">
+            <div class="panel-body" style="border-bottom: 1px solid var(--border);">
+                <h5 style="color: #58a6ff; margin: 0;"><i class="fas fa-book"></i> Resources & Information</h5>
+            </div>
+            <div class="panel-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <h6 style="color: #d29922;"><i class="fas fa-globe"></i> Monitoring Services</h6>
+                        <ul class="text-muted small">
+                            <li>Have I Been Pwned: <a href="https://haveibeenpwned.com" target="_blank" style="color: #58a6ff;">haveibeenpwned.com</a></li>
+                            <li>Firefox Monitor: <a href="https://monitor.firefox.com" target="_blank" style="color: #58a6ff;">monitor.firefox.com</a></li>
+                            <li>Identity Guard: Check for unauthorized activities</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 style="color: #d29922;"><i class="fas fa-shield-alt"></i> Security Best Practices</h6>
+                        <ul class="text-muted small">
+                            <li>Enable 2FA on all critical accounts</li>
+                            <li>Use unique passwords for each service</li>
+                            <li>Enable security alerts on banking apps</li>
+                            <li>Monitor credit reports regularly</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+{% endblock %}

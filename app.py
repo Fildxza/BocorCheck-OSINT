@@ -4,6 +4,10 @@ from io import StringIO
 from datetime import date, datetime
 from typing import List, Dict, Any, Optional
 from functools import wraps
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 import phonenumbers
 import requests
@@ -2012,6 +2016,66 @@ def view_breach_timeline(investigation_id: int):
     """
     View breach timeline for an investigation
     Shows when breaches occurred vs when discovered
+    Transforms breach results into timeline format for visualization
+    """
+    user_id = session.get('user_id')
+    
+    # Verify ownership and get investigation
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT * FROM investigation_logs WHERE id = %s AND user_id = %s",
+            (investigation_id, user_id)
+        )
+        investigation = cursor.fetchone()
+        
+        if not investigation:
+            cursor.close()
+            conn.close()
+            return "Not found", 404
+        
+        # Fetch breach results for this investigation
+        cursor.execute(
+            """SELECT 
+                id, breach_name, breach_date, data_exposed 
+               FROM breach_results 
+               WHERE investigation_id = %s 
+               ORDER BY breach_date DESC, id DESC""",
+            (investigation_id,)
+        )
+        breach_results = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+    except MySQLError as e:
+        print(f"Error fetching breach data: {e}")
+        return "Database error", 500
+    
+    # Get timeline data from the more comprehensive function in monitoring.py
+    timeline_data = get_breach_timeline(investigation_id)
+    
+    # Get timeline statistics for the chart
+    timeline_stats = get_timeline_statistics(user_id)
+
+    # Attach breaches to investigation object for template compatibility
+    investigation['breaches'] = breach_results
+    
+    return render_template(
+        "breach_timeline.html",
+        investigation=investigation,
+        timeline_data=timeline_data,
+        timeline_stats=timeline_stats,
+        tr=tr
+    )
+
+
+@app.route("/mitigation/<int:investigation_id>", methods=["GET"])
+@login_required
+def mitigation_planning(investigation_id: int):
+    """
+    Show mitigation planning for an investigation
+    Displays AI-generated or rule-based mitigation actions
     """
     user_id = session.get('user_id')
     
@@ -2032,13 +2096,60 @@ def view_breach_timeline(investigation_id: int):
     except MySQLError:
         return "Database error", 500
     
-    # Get timeline
-    timeline = get_breach_timeline(investigation_id)
+    # Get breach details
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT * FROM breach_incidents WHERE investigation_id = %s ORDER BY id",
+            (investigation_id,)
+        )
+        breaches = cursor.fetchall()
+        cursor.close()
+        conn.close()
+    except MySQLError:
+        breaches = []
+    
+    # Calculate risk level
+    risk_level = "LOW"
+    risk_score = 0
+    if breaches:
+        risk_score = len(breaches) * 20
+        if risk_score >= 70:
+            risk_level = "HIGH"
+        elif risk_score >= 40:
+            risk_level = "MEDIUM"
+    
+    # Static mitigation actions (fallback if AI not available)
+    mitigation_plan = {
+        "immediate": [
+            "Change all passwords immediately",
+            "Enable 2FA/MFA on all accounts",
+            "Monitor bank and credit accounts",
+            "Review active sessions for unauthorized access"
+        ],
+        "short_term": [
+            "Place fraud alert with credit bureaus",
+            "Get free credit report",
+            "Update security questions and recovery options",
+            "Check email recovery settings"
+        ],
+        "long_term": [
+            "Monitor credit reports regularly",
+            "Use unique passwords for each account",
+            "Use password manager",
+            "Enable breach notification alerts",
+            "Conduct regular security audits"
+        ]
+    }
     
     return render_template(
-        "breach_timeline.html",
+        "mitigation_response.html",
         investigation=investigation,
-        timeline=timeline,
+        breaches=breaches,
+        risk_level=risk_level,
+        risk_score=risk_score,
+        mitigation_plan=mitigation_plan,
         tr=tr
     )
 
@@ -2439,7 +2550,7 @@ def get_decoy_breaches_summary() -> Dict[str, Any]:
             "total_affected_accounts": 0,
             "high_severity_count": 0,
             "medium_severity_count": 0,
-            "low_severity_count": 0,            git commit -m "First commit FYP OSINT breach monitor"
+            "low_severity_count": 0,
             "oldest_breach": "Unknown",
             "latest_breach": "Unknown",
         }
