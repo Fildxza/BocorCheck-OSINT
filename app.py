@@ -1437,6 +1437,196 @@ def _build_timeline_chart_data(timeline_data: List[Dict[str, Any]]) -> Dict[str,
     }
 
 
+def _build_mitigation_dashboard_context(
+    user_id: int,
+    selected_investigation_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Build context for mitigation dashboard using latest or selected investigation.
+    Falls back to secure best-practice recommendations when no findings exist.
+    """
+    investigation: Optional[Dict[str, Any]] = None
+    breach_rows: List[Dict[str, Any]] = []
+    affected_data_types: List[str] = []
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                if selected_investigation_id:
+                    cursor.execute(
+                        """
+                        SELECT id, email, phone_number, breach_count, risk_score, risk_level, checked_at
+                        FROM investigation_logs
+                        WHERE id = %s AND user_id = %s
+                        LIMIT 1
+                        """,
+                        (selected_investigation_id, user_id),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT id, email, phone_number, breach_count, risk_score, risk_level, checked_at
+                        FROM investigation_logs
+                        WHERE user_id = %s
+                        ORDER BY checked_at DESC
+                        LIMIT 1
+                        """,
+                        (user_id,),
+                    )
+
+                investigation = cursor.fetchone()
+
+                if investigation:
+                    cursor.execute(
+                        """
+                        SELECT breach_name, breach_date, data_exposed
+                        FROM breach_results
+                        WHERE investigation_id = %s
+                        ORDER BY breach_date DESC, id DESC
+                        """,
+                        (investigation["id"],),
+                    )
+                    breach_rows = cursor.fetchall()
+    except MySQLError as e:
+        print(f"Error building mitigation context: {e}")
+
+    for row in breach_rows:
+        data_exposed = row.get("data_exposed") or ""
+        for token in data_exposed.split(","):
+            token = token.strip()
+            if token and token not in affected_data_types:
+                affected_data_types.append(token)
+
+    has_findings = bool(investigation and (investigation.get("breach_count") or 0) > 0)
+    risk_score = int((investigation or {}).get("risk_score") or 0)
+    risk_level = ((investigation or {}).get("risk_level") or _risk_level_from_score(risk_score)).upper()
+
+    recommendations = {
+        "critical_actions": [],
+        "important_actions": [],
+        "risk_summary": "",
+        "estimated_total_time": "0 minutes",
+    }
+
+    if has_findings:
+        recommendations = get_smart_recommendations(
+            exposed_data_types=affected_data_types or ["Email"],
+            risk_level=risk_level,
+        )
+
+    def _action_icon(action_type: str, priority_label: str) -> str:
+        if "password" in action_type.lower():
+            return "fa-key"
+        if "monitor" in action_type.lower() or "alert" in action_type.lower():
+            return "fa-bell"
+        if "identity" in action_type.lower() or "fraud" in action_type.lower():
+            return "fa-id-card"
+        if priority_label == "Critical":
+            return "fa-triangle-exclamation"
+        if priority_label == "High":
+            return "fa-shield-halved"
+        return "fa-circle-check"
+
+    def _normalize_actions(items: List[Dict[str, Any]], priority_label: str) -> List[Dict[str, Any]]:
+        normalized: List[Dict[str, Any]] = []
+        for item in items:
+            action_type = item.get("action_type") or "Account Protection"
+            normalized.append(
+                {
+                    "title": item.get("title") or action_type,
+                    "description": item.get("description") or "Recommended security mitigation step.",
+                    "priority_label": priority_label,
+                    "icon": _action_icon(action_type, priority_label),
+                    "time": item.get("estimated_time") or "15 minutes",
+                }
+            )
+        return normalized
+
+    critical_actions = _normalize_actions(recommendations.get("critical_actions", []), "Critical")
+    high_actions = _normalize_actions(recommendations.get("important_actions", []), "High")
+
+    medium_low_actions: List[Dict[str, Any]] = []
+    for tip in get_mitigation_tips("High" if risk_level == "HIGH" else "Medium", has_findings):
+        medium_low_actions.append(
+            {
+                "title": tip,
+                "description": "Best-practice hardening recommendation.",
+                "priority_label": "Medium" if has_findings else "Low",
+                "icon": "fa-shield",
+                "time": "10 minutes",
+            }
+        )
+
+    if not has_findings:
+        critical_actions = []
+        high_actions = []
+        medium_low_actions = [
+            {
+                "title": "Enable multi-factor authentication for important accounts",
+                "description": "Adds a strong additional defense against account takeover.",
+                "priority_label": "Low",
+                "icon": "fa-mobile-screen-button",
+                "time": "15 minutes",
+            },
+            {
+                "title": "Use unique passwords with a password manager",
+                "description": "Prevents credential reuse across breached websites.",
+                "priority_label": "Low",
+                "icon": "fa-key",
+                "time": "20 minutes",
+            },
+            {
+                "title": "Continue periodic dark web monitoring",
+                "description": "Early detection lowers exposure impact significantly.",
+                "priority_label": "Low",
+                "icon": "fa-magnifying-glass",
+                "time": "Ongoing",
+            },
+        ]
+
+    suggested_tools = [
+        {
+            "name": "Password Manager",
+            "description": "Generate and store unique high-entropy passwords.",
+            "icon": "fa-key",
+        },
+        {
+            "name": "MFA Authenticator App",
+            "description": "Adds a second factor for account logins.",
+            "icon": "fa-mobile-screen",
+        },
+        {
+            "name": "Breach Monitoring Alerts",
+            "description": "Receive alerts when your data appears in new leaks.",
+            "icon": "fa-bell",
+        },
+        {
+            "name": "Credit Monitoring",
+            "description": "Track suspicious financial activity and identity fraud.",
+            "icon": "fa-chart-line",
+        },
+    ]
+
+    # Lower current risk translates into higher security posture score.
+    security_improvement_score = max(5, min(100, 100 - risk_score))
+
+    return {
+        "investigation": investigation,
+        "has_findings": has_findings,
+        "risk_level": risk_level,
+        "risk_score": risk_score,
+        "risk_summary_text": recommendations.get("risk_summary") or "System posture looks stable.",
+        "estimated_total_time": recommendations.get("estimated_total_time") or "0 minutes",
+        "critical_actions": critical_actions,
+        "high_actions": high_actions,
+        "medium_low_actions": medium_low_actions,
+        "affected_data_types": affected_data_types,
+        "suggested_tools": suggested_tools,
+        "security_improvement_score": security_improvement_score,
+        "selected_investigation_id": selected_investigation_id,
+    }
+
+
 def get_mitigation_tips(risk_level: str, has_breach: bool) -> List[str]:
     """
     Return 3 security tips based on breach and risk outcome.
@@ -2212,6 +2402,24 @@ def view_breach_timeline(investigation_id: int):
     )
 
 
+@app.route("/mitigation", methods=["GET"])
+@login_required
+def mitigation():
+    """
+    Mitigation dashboard entry route.
+    Uses latest investigation by default, or accepts ?investigation_id=<id>.
+    """
+    user_id = session.get("user_id")
+    investigation_id = request.args.get("investigation_id", type=int)
+
+    context = _build_mitigation_dashboard_context(
+        user_id=user_id,
+        selected_investigation_id=investigation_id,
+    )
+    context["tr"] = tr
+    return render_template("mitigation.html", **context)
+
+
 @app.route("/mitigation/<int:investigation_id>", methods=["GET"])
 @login_required
 def mitigation_planning(investigation_id: int):
@@ -2219,81 +2427,52 @@ def mitigation_planning(investigation_id: int):
     Show mitigation planning for an investigation
     Displays AI-generated or rule-based mitigation actions
     """
-    user_id = session.get('user_id')
-    
-    # Verify ownership
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            "SELECT * FROM investigation_logs WHERE id = %s AND user_id = %s",
-            (investigation_id, user_id)
-        )
-        investigation = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if not investigation:
-            return "Not found", 404
-    except MySQLError:
-        return "Database error", 500
-    
-    # Get breach details
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(
-            "SELECT * FROM breach_incidents WHERE investigation_id = %s ORDER BY id",
-            (investigation_id,)
-        )
-        breaches = cursor.fetchall()
-        cursor.close()
-        conn.close()
-    except MySQLError:
-        breaches = []
-    
-    # Calculate risk level
-    risk_level = "LOW"
-    risk_score = 0
-    if breaches:
-        risk_score = len(breaches) * 20
-        if risk_score >= 70:
-            risk_level = "HIGH"
-        elif risk_score >= 40:
-            risk_level = "MEDIUM"
-    
-    # Static mitigation actions (fallback if AI not available)
-    mitigation_plan = {
-        "immediate": [
-            "Change all passwords immediately",
-            "Enable 2FA/MFA on all accounts",
-            "Monitor bank and credit accounts",
-            "Review active sessions for unauthorized access"
-        ],
-        "short_term": [
-            "Place fraud alert with credit bureaus",
-            "Get free credit report",
-            "Update security questions and recovery options",
-            "Check email recovery settings"
-        ],
-        "long_term": [
-            "Monitor credit reports regularly",
-            "Use unique passwords for each account",
-            "Use password manager",
-            "Enable breach notification alerts",
-            "Conduct regular security audits"
-        ]
-    }
-    
-    return render_template(
-        "mitigation_response.html",
-        investigation=investigation,
-        breaches=breaches,
-        risk_level=risk_level,
-        risk_score=risk_score,
-        mitigation_plan=mitigation_plan,
-        tr=tr
+    user_id = session.get("user_id")
+
+    context = _build_mitigation_dashboard_context(
+        user_id=user_id,
+        selected_investigation_id=investigation_id,
     )
+
+    if not context.get("investigation"):
+        return "Not found", 404
+
+    actions: List[Dict[str, Any]] = []
+    for group_name, priority in (
+        ("critical_actions", "Critical"),
+        ("high_actions", "High"),
+        ("medium_low_actions", "Medium/Low"),
+    ):
+        for item in context.get(group_name, []) or []:
+            actions.append(
+                {
+                    "title": item.get("title") or "Security action",
+                    "description": item.get("description") or "Recommended mitigation step.",
+                    "icon": item.get("icon") or "fa-shield-halved",
+                    "priority": item.get("priority_label") or priority,
+                    "time": item.get("time") or "15 minutes",
+                }
+            )
+
+    security_improvements = [
+        "Enable multi-factor authentication (MFA) for high-value accounts.",
+        "Use unique passwords with a trusted password manager.",
+        "Enable account breach alerts and monitor suspicious sign-ins.",
+        "Review recovery email/phone settings and remove unknown devices.",
+    ]
+
+    context.update(
+        {
+            "risk_score": context.get("risk_score", 0),
+            "risk_level": context.get("risk_level", "LOW"),
+            "actions": actions,
+            "security_improvements": security_improvements,
+            "has_actions": bool(actions),
+            "tr": tr,
+        }
+    )
+
+    return render_template("mitigation_response.html", **context)
 
 
 # ============================================================================

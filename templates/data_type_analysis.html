@@ -339,7 +339,7 @@
                     </li>
                     <li style="margin-top: 1rem;">
                         <strong>Get Mitigation Plan</strong>
-                        <a href="/mitigation" class="btn btn-sm btn-primary" style="margin-top: 0.5rem;">
+                        <a href="{{ url_for('mitigation_planning', investigation_id=investigation.id) }}" class="btn btn-sm btn-primary" style="margin-top: 0.5rem;">
                             <i class="fas fa-shield-alt"></i> View Plan
                         </a>
                     </li>

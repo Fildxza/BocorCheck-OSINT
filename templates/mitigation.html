@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Mitigation Plan Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mitigation-page">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="page-title"><i class="fas fa-shield-alt"></i> Mitigation Plan Dashboard</h1>
+            <p class="page-subtitle">Cybersecurity response module for prioritized remediation actions</p>
+        </div>
+        <a href="{{ url_for('monitoring_dashboard') }}" class="btn btn-outline-light btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Monitoring
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="soc-card h-100">
+                <div class="soc-card-title">Summary Risk Level</div>
+                <div class="risk-badge-wrap">
+                    {% set level = (risk_level or 'LOW')|upper %}
+                    <span class="risk-pill {{ level|lower }}">{{ level }}</span>
+                    <h2 class="risk-score">{{ risk_score }}/100</h2>
+                    <p class="small-note mb-0">{{ risk_summary_text }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="soc-card h-100">
+                <div class="soc-card-title">Security Improvement Score</div>
+                <div class="progress-wrap">
+                    <div class="progress" style="height: 12px; background: rgba(255,255,255,0.08);">
+                        <div id="improvementProgress" class="progress-bar progress-gradient" role="progressbar" style="width: 0%;" data-target-score="{{ security_improvement_score }}" aria-valuenow="{{ security_improvement_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <div class="mt-2 score-value">{{ security_improvement_score }}%</div>
+                    <small class="small-note">Higher score indicates stronger security posture after mitigation.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="soc-card h-100">
+                <div class="soc-card-title">Assessment Scope</div>
+                {% if investigation %}
+                <ul class="scope-list mb-0">
+                    <li><strong>Investigation ID:</strong> {{ investigation.id }}</li>
+                    <li><strong>Email:</strong> {{ investigation.email or '-' }}</li>
+                    <li><strong>Phone:</strong> {{ investigation.phone_number or '-' }}</li>
+                    <li><strong>Estimated Action Time:</strong> {{ estimated_total_time }}</li>
+                </ul>
+                {% else %}
+                <p class="small-note mb-0">No recent investigation found. Showing baseline hardening recommendations.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if not has_findings %}
+    <div class="soc-card secure-state mb-4">
+        <h4><i class="fas fa-circle-check"></i> System Secure</h4>
+        <p class="mb-0">No active findings were detected for your latest scan. Continue applying best-practice hardening below.</p>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="soc-card h-100">
+                <div class="soc-card-title">Recommended Actions</div>
+
+                {% if critical_actions %}
+                <div class="priority-group">
+                    <div class="priority-title critical">Critical Actions</div>
+                    {% for action in critical_actions %}
+                    <div class="action-item critical">
+                        <div class="icon"><i class="fas {{ action.icon }}"></i></div>
+                        <div class="content">
+                            <h6>{{ action.title }}</h6>
+                            <p>{{ action.description }}</p>
+                        </div>
+                        <span class="priority-pill critical">{{ action.priority_label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if high_actions %}
+                <div class="priority-group">
+                    <div class="priority-title high">High-Priority Actions</div>
+                    {% for action in high_actions %}
+                    <div class="action-item high">
+                        <div class="icon"><i class="fas {{ action.icon }}"></i></div>
+                        <div class="content">
+                            <h6>{{ action.title }}</h6>
+                            <p>{{ action.description }}</p>
+                        </div>
+                        <span class="priority-pill high">{{ action.priority_label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="priority-group">
+                    <div class="priority-title medium">Medium / Low Recommendations</div>
+                    {% for action in medium_low_actions %}
+                    <div class="action-item medium">
+                        <div class="icon"><i class="fas {{ action.icon }}"></i></div>
+                        <div class="content">
+                            <h6>{{ action.title }}</h6>
+                            <p>{{ action.description }}</p>
+                        </div>
+                        <span class="priority-pill medium">{{ action.priority_label }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="soc-card mb-3">
+                <div class="soc-card-title">Affected Data Types</div>
+                {% if affected_data_types %}
+                <div class="chips">
+                    {% for data_type in affected_data_types %}
+                    <span class="chip">{{ data_type }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="small-note mb-0">No exposed data classes detected from latest scan.</p>
+                {% endif %}
+            </div>
+
+            <div class="soc-card">
+                <div class="soc-card-title">Suggested Security Tools</div>
+                <div class="tool-list">
+                    {% for tool in suggested_tools %}
+                    <div class="tool-item">
+                        <i class="fas {{ tool.icon }}"></i>
+                        <div>
+                            <strong>{{ tool.name }}</strong>
+                            <small>{{ tool.description }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const bar = document.getElementById('improvementProgress');
+    if (!bar) return;
+
+    const targetScore = Number(bar.dataset.targetScore || '0');
+    const clamped = Math.max(0, Math.min(100, targetScore));
+
+    setTimeout(() => {
+        bar.style.width = `${clamped}%`;
+    }, 120);
+});
+</script>
+
+<style>
+.mitigation-page {
+    color: #deecff;
+}
+.page-title {
+    color: #eaf4ff;
+    font-weight: 700;
+}
+.page-subtitle {
+    color: #9ab8d4;
+}
+.soc-card {
+    background: linear-gradient(145deg, #101c2e 0%, #0a1523 100%);
+    border: 1px solid rgba(0, 212, 255, 0.24);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0, 12, 24, 0.45), inset 0 0 24px rgba(0, 212, 255, 0.04);
+    padding: 14px;
+    animation: riseIn 0.45s ease both;
+}
+.soc-card-title {
+    color: #9fd4ff;
+    font-weight: 700;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+    padding-bottom: 8px;
+}
+.risk-badge-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.risk-pill {
+    display: inline-flex;
+    width: fit-content;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+.risk-pill.high { background: rgba(255,77,109,0.18); color: #ff9aab; border: 1px solid rgba(255,77,109,0.45); }
+.risk-pill.medium { background: rgba(255,159,67,0.2); color: #ffd0a1; border: 1px solid rgba(255,159,67,0.45); }
+.risk-pill.low { background: rgba(38,222,129,0.18); color: #95ffc4; border: 1px solid rgba(38,222,129,0.45); }
+.risk-score {
+    margin: 0;
+    color: #f4fbff;
+    font-weight: 700;
+}
+.small-note {
+    color: #a9c9e4;
+}
+.scope-list {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.scope-list li {
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed rgba(154,184,212,0.25);
+    color: #d4e8ff;
+}
+.scope-list li:last-child {
+    border-bottom: none;
+}
+.progress-gradient {
+    background: linear-gradient(90deg, #26de81 0%, #fbc02d 55%, #ff4d6d 100%);
+}
+.score-value {
+    color: #eaf4ff;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+.secure-state {
+    border-color: rgba(38,222,129,0.45);
+    box-shadow: 0 10px 28px rgba(0, 12, 24, 0.45), inset 0 0 24px rgba(38,222,129,0.08);
+}
+.secure-state h4 {
+    color: #96ffc2;
+}
+.priority-group {
+    margin-top: 10px;
+}
+.priority-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.priority-title.critical { color: #ff9aab; }
+.priority-title.high { color: #ffd0a1; }
+.priority-title.medium { color: #9ee1ff; }
+.action-item {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    gap: 10px;
+    align-items: start;
+    border: 1px solid rgba(154,184,212,0.24);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.action-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+}
+.action-item .icon {
+    color: #00d9ff;
+    margin-top: 2px;
+}
+.action-item .content h6 {
+    margin: 0 0 2px;
+    color: #e7f3ff;
+}
+.action-item .content p {
+    margin: 0;
+    color: #bfdcf7;
+    font-size: 0.9rem;
+}
+.action-item.critical { box-shadow: inset 3px 0 0 #ff4d6d; }
+.action-item.high { box-shadow: inset 3px 0 0 #ff9f43; }
+.action-item.medium { box-shadow: inset 3px 0 0 #29b6f6; }
+.priority-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.priority-pill.critical { background: rgba(255,77,109,0.18); color: #ff9aab; border: 1px solid rgba(255,77,109,0.45); }
+.priority-pill.high { background: rgba(255,159,67,0.2); color: #ffd0a1; border: 1px solid rgba(255,159,67,0.45); }
+.priority-pill.medium { background: rgba(41,182,246,0.18); color: #9ee1ff; border: 1px solid rgba(41,182,246,0.45); }
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.chip {
+    background: rgba(0, 212, 255, 0.12);
+    border: 1px solid rgba(0, 212, 255, 0.3);
+    color: #bce7ff;
+    border-radius: 999px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.82rem;
+}
+.tool-list {
+    display: grid;
+    gap: 9px;
+}
+.tool-item {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 8px;
+    align-items: start;
+    border: 1px solid rgba(154,184,212,0.2);
+    border-radius: 9px;
+    padding: 8px;
+}
+.tool-item i {
+    color: #00d9ff;
+    margin-top: 4px;
+}
+.tool-item strong {
+    color: #e8f4ff;
+    display: block;
+}
+.tool-item small {
+    color: #bfdcf7;
+}
+@keyframes riseIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
