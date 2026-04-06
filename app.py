@@ -1,7 +1,7 @@
 import os
 import csv
 from io import StringIO
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional
 from functools import wraps
 from dotenv import load_dotenv
@@ -1306,6 +1306,137 @@ def fetch_investigation_history(
             return cursor.fetchall()
 
 
+def _risk_level_from_score(score: int) -> str:
+    if score >= 75:
+        return "HIGH"
+    if score >= 40:
+        return "MEDIUM"
+    return "LOW"
+
+
+def _normalize_timeline_event(event: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize timeline records so template/chart can rely on consistent keys.
+    Works for both DB records and fallback records.
+    """
+    raw_score = event.get("current_risk_score")
+    if raw_score is None:
+        raw_score = event.get("initial_risk_score")
+    if raw_score is None:
+        raw_score = event.get("risk_score", 50)
+
+    try:
+        risk_score = int(raw_score)
+    except (TypeError, ValueError):
+        risk_score = 50
+
+    breach_date = event.get("breach_date")
+    discovery_date = event.get("discovery_date")
+
+    time_to_discovery = event.get("time_to_discovery")
+    if time_to_discovery is None and breach_date and discovery_date:
+        try:
+            time_to_discovery = (discovery_date - breach_date).days
+        except TypeError:
+            time_to_discovery = None
+
+    normalized = {
+        "breach_name": event.get("breach_name", "Unknown Breach"),
+        "breach_date": breach_date,
+        "discovery_date": discovery_date,
+        "current_risk_score": risk_score,
+        "risk_level": event.get("risk_level") or _risk_level_from_score(risk_score),
+        "time_to_discovery": 0 if time_to_discovery is None else time_to_discovery,
+        "data_exposed": event.get("data_exposed") or "",
+    }
+    return normalized
+
+
+def _build_fallback_timeline_data(investigation_email: str = "") -> List[Dict[str, Any]]:
+    """
+    Build realistic simulated timeline entries when DB has no breaches.
+    Timeline spans the last ~3 weeks with varied risk levels and scores.
+    """
+    today = date.today()
+    suffix = investigation_email.split("@")[0] if investigation_email else "user"
+
+    fallback_seed = [
+        (24, "Credential Stuffing Attempt", 32, "Email addresses, Usernames"),
+        (20, "Third-Party Vendor Leak", 48, "Email addresses, Phone numbers"),
+        (16, "Forum Archive Exposure", 58, "Email addresses, Password hints"),
+        (12, "Marketplace Data Leak", 72, "Email addresses, Phone numbers, Addresses"),
+        (9, "Cloud Misconfiguration Dump", 84, "Passwords, IP addresses, Session tokens"),
+        (6, "Payment Portal Incident", 91, "Financial Information, Full names, Phone numbers"),
+    ]
+
+    events: List[Dict[str, Any]] = []
+    for offset, name, score, exposed in fallback_seed:
+        breach_date = today - timedelta(days=offset)
+        discovery_date = breach_date + timedelta(days=max(1, min(6, score // 20)))
+        events.append(
+            _normalize_timeline_event(
+                {
+                    "breach_name": f"{name} ({suffix})",
+                    "breach_date": breach_date,
+                    "discovery_date": discovery_date,
+                    "current_risk_score": score,
+                    "risk_level": _risk_level_from_score(score),
+                    "time_to_discovery": (discovery_date - breach_date).days,
+                    "data_exposed": exposed,
+                }
+            )
+        )
+
+    # Keep latest breach first to match existing UI behavior.
+    events.sort(key=lambda row: row.get("breach_date") or date.min, reverse=True)
+    return events
+
+
+def _build_timeline_chart_data(timeline_data: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
+    """
+    Aggregate timeline events by breach date for chart datasets.
+    Returns labels, breach counts, and average risk scores.
+    """
+    buckets: Dict[str, Dict[str, float]] = {}
+    for event in timeline_data:
+        breach_date = event.get("breach_date")
+        if isinstance(breach_date, (datetime, date)):
+            label = breach_date.strftime("%Y-%m-%d")
+        else:
+            label = "Unknown"
+
+        risk_score = event.get("current_risk_score", 50)
+        try:
+            risk_score = int(risk_score)
+        except (TypeError, ValueError):
+            risk_score = 50
+
+        if label not in buckets:
+            buckets[label] = {"count": 0, "risk_sum": 0}
+
+        buckets[label]["count"] += 1
+        buckets[label]["risk_sum"] += risk_score
+
+    sorted_labels = sorted([key for key in buckets.keys() if key != "Unknown"])
+    if "Unknown" in buckets:
+        sorted_labels.append("Unknown")
+
+    labels: List[str] = []
+    breach_counts: List[int] = []
+    avg_risk_scores: List[int] = []
+    for label in sorted_labels:
+        entry = buckets[label]
+        labels.append(label)
+        breach_counts.append(int(entry["count"]))
+        avg_risk_scores.append(int(round(entry["risk_sum"] / max(1, entry["count"]))))
+
+    return {
+        "labels": labels,
+        "breach_counts": breach_counts,
+        "avg_risk_scores": avg_risk_scores,
+    }
+
+
 def get_mitigation_tips(risk_level: str, has_breach: bool) -> List[str]:
     """
     Return 3 security tips based on breach and risk outcome.
@@ -2053,10 +2184,19 @@ def view_breach_timeline(investigation_id: int):
         return "Database error", 500
     
     # Get timeline data from the more comprehensive function in monitoring.py
-    timeline_data = get_breach_timeline(investigation_id)
+    real_timeline_data = get_breach_timeline(investigation_id) or []
+    timeline_has_real_data = len(real_timeline_data) > 0
+
+    if timeline_has_real_data:
+        timeline_data = [_normalize_timeline_event(event) for event in real_timeline_data]
+    else:
+        timeline_data = _build_fallback_timeline_data(investigation.get("email") or "")
     
-    # Get timeline statistics for the chart
+    # Get timeline statistics for KPI cards
     timeline_stats = get_timeline_statistics(user_id)
+
+    # Build chart + table data from whichever timeline set is active.
+    timeline_chart_data = _build_timeline_chart_data(timeline_data)
 
     # Attach breaches to investigation object for template compatibility
     investigation['breaches'] = breach_results
@@ -2066,6 +2206,8 @@ def view_breach_timeline(investigation_id: int):
         investigation=investigation,
         timeline_data=timeline_data,
         timeline_stats=timeline_stats,
+        timeline_has_real_data=timeline_has_real_data,
+        timeline_chart_data=timeline_chart_data,
         tr=tr
     )
 

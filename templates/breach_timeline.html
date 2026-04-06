@@ -69,6 +69,72 @@
             margin-bottom: 30px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
+
+        .chart-frame {
+            position: relative;
+            height: 340px;
+        }
+
+        .timeline-note {
+            background: rgba(0, 212, 255, 0.08);
+            border: 1px solid rgba(0, 212, 255, 0.35);
+            color: #b9e8ff;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            font-size: 0.92rem;
+        }
+
+        .soc-table-container {
+            background: linear-gradient(135deg, var(--soc-card) 0%, #213556 100%);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .soc-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #e0f4ff;
+        }
+
+        .soc-table thead th {
+            color: #8ad9ff;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-size: 0.82rem;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.35);
+            padding: 12px 10px;
+        }
+
+        .soc-table tbody td {
+            border-bottom: 1px solid rgba(127, 179, 213, 0.2);
+            padding: 12px 10px;
+            font-size: 0.94rem;
+            color: #cdeeff;
+        }
+
+        .soc-table tbody tr:hover {
+            background: rgba(0, 212, 255, 0.07);
+        }
+
+        .risk-pill {
+            display: inline-block;
+            min-width: 78px;
+            text-align: center;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            color: #081421;
+        }
+
+        .risk-pill.high { background: #ff3860; }
+        .risk-pill.medium { background: #ffb700; }
+        .risk-pill.low { background: #00a870; }
         
         .timeline-vertical {
             position: relative;
@@ -257,7 +323,43 @@
     <!-- Breach Timeline Chart -->
     <div class="soc-chart-container">
         <h2 class="text-center" style="color: var(--soc-primary); margin-bottom: 20px;">{{ tr('Breaches Over Time') }}</h2>
-        <canvas id="breachTimelineChart"></canvas>
+        {% if not timeline_has_real_data %}
+        <div class="timeline-note">
+            No real breach data available. Showing simulated data for visualization.
+        </div>
+        {% endif %}
+        <div class="chart-frame">
+            <canvas id="breachTimelineChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Timeline Data Table -->
+    <div class="soc-table-container">
+        <h2 class="text-center" style="color: var(--soc-primary); margin-bottom: 18px;">{{ tr('Timeline Breach Details') }}</h2>
+        <div class="table-responsive">
+            <table class="soc-table">
+                <thead>
+                    <tr>
+                        <th>{{ tr('Date') }}</th>
+                        <th>{{ tr('Breach Name') }}</th>
+                        <th>{{ tr('Risk Level') }}</th>
+                        <th>{{ tr('Risk Score') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in timeline_data %}
+                    {% set level = (event.risk_level or 'LOW')|upper %}
+                    {% set level_class = 'high' if level == 'HIGH' else 'medium' if level == 'MEDIUM' else 'low' %}
+                    <tr>
+                        <td>{{ event.breach_date.strftime('%Y-%m-%d') if event.breach_date else 'Unknown' }}</td>
+                        <td>{{ event.breach_name }}</td>
+                        <td><span class="risk-pill {{ level_class }}">{{ level }}</span></td>
+                        <td>{{ event.current_risk_score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Vertical Timeline -->
@@ -293,26 +395,20 @@
                 </div>
             </div>
         </div>
-        {% else %}
-        <div class="text-center p-5">
-            <h3 style="color: #a2d5f2;">{{ tr('No breach timeline data available for this investigation yet.') }}</h3>
-            <p>{{ tr('Run a scan or manually add breaches to populate the timeline.') }}</p>
-        </div>
         {% endfor %}
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script id="timeline-chart-data" type="application/json">{{ timeline_chart_data | tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const ctx = document.getElementById('breachTimelineChart').getContext('2d');
-    
-    const yearlyData = {{ timeline_stats.yearly_breakdown | tojson }};
-    
-    const labels = yearlyData.map(d => d.year);
-    const breachCounts = yearlyData.map(d => d.breach_count);
-    const avgRiskScores = yearlyData.map(d => d.avg_risk);
+    const chartData = JSON.parse(document.getElementById('timeline-chart-data').textContent || '{}');
+    const labels = chartData.labels || [];
+    const breachCounts = chartData.breach_counts || [];
+    const avgRiskScores = chartData.avg_risk_scores || [];
 
     const timelineChart = new Chart(ctx, {
         type: 'bar',
@@ -346,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 x: {
                     title: {
                         display: true,
-                        text: '{{ tr("Year") }}',
+                        text: '{{ tr("Date") }}',
                         color: '#a2d5f2',
                         font: { size: 14 }
                     },
