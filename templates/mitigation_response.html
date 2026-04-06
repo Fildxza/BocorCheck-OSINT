@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Mitigation Plan{% endblock %}
+
+{% block content %}
+<div class="mitigation-wrap container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-shield-virus me-2"></i>Mitigation Plan
+            </h1>
+            <p class="page-subtitle mb-0">Actionable response guidance for breach risk reduction.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('history') }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-clock-rotate-left me-1"></i>Back to History
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm back-btn">
+                <i class="fas fa-house me-1"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4 col-md-6">
+            <div class="glass-card h-100">
+                <h6 class="section-label">Risk Summary</h6>
+                <div class="risk-score-box">
+                    <div class="score-value">{{ risk_score or 0 }}<span>/100</span></div>
+                    {% set level = (risk_level or 'LOW')|upper %}
+                    <span class="risk-pill {{ level|lower }}">{{ level }}</span>
+                </div>
+                <p class="muted-text mb-0">Current risk score and severity based on detected exposures.</p>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="glass-card h-100">
+                <h6 class="section-label">Investigation</h6>
+                {% if investigation %}
+                <ul class="meta-list mb-0">
+                    <li><strong>ID:</strong> {{ investigation.id }}</li>
+                    <li><strong>Email:</strong> {{ investigation.email or '-' }}</li>
+                    <li><strong>Phone:</strong> {{ investigation.phone_number or '-' }}</li>
+                    <li><strong>Findings:</strong> {{ investigation.breach_count or 0 }}</li>
+                </ul>
+                {% else %}
+                <p class="muted-text mb-0">No investigation context found.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12">
+            <div class="glass-card h-100">
+                <h6 class="section-label">Security Status</h6>
+                <div class="status-note">
+                    {% if has_actions %}
+                    <i class="fas fa-triangle-exclamation text-warning me-2"></i>
+                    <span>Mitigation actions are required.</span>
+                    {% else %}
+                    <i class="fas fa-circle-check text-success me-2"></i>
+                    <span>No mitigation plan available</span>
+                    {% endif %}
+                </div>
+                <p class="muted-text mb-0 mt-2">Use recommendations below to strengthen account and data security posture.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="glass-card h-100">
+                <h5 class="card-title mb-3"><i class="fas fa-list-check me-2"></i>Recommended Actions</h5>
+
+                {% if has_actions %}
+                <div class="action-grid">
+                    {% for action in actions %}
+                    {% set pr = (action.priority or 'Medium/Low')|lower %}
+                    <div class="action-card {{ 'critical' if 'critical' in pr else 'high' if 'high' in pr else 'medium' }}">
+                        <div class="action-icon">
+                            <i class="fas {{ action.icon or 'fa-shield-halved' }}"></i>
+                        </div>
+                        <div class="action-body">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                                <h6 class="mb-0">{{ action.title }}</h6>
+                                <span class="priority-badge">{{ action.priority or 'Medium/Low' }}</span>
+                            </div>
+                            <p class="mb-1">{{ action.description }}</p>
+                            <small class="muted-text"><i class="fas fa-hourglass-half me-1"></i>{{ action.time or '15 minutes' }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-shield-heart"></i>
+                    <p class="mb-0">No mitigation plan available</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="glass-card h-100">
+                <h5 class="card-title mb-3"><i class="fas fa-screwdriver-wrench me-2"></i>Security Improvements</h5>
+                <div class="improvements-list">
+                    {% for item in security_improvements %}
+                    <div class="improvement-item">
+                        <i class="fas fa-circle-check"></i>
+                        <span>{{ item }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.mitigation-wrap {
+    color: #d7e9ff;
+}
+.page-title {
+    font-weight: 800;
+    color: #f1f7ff;
+}
+.page-subtitle {
+    color: #9cb6cf;
+}
+.glass-card {
+    background: linear-gradient(140deg, #0f1b2d 0%, #0a1321 100%);
+    border: 1px solid rgba(72, 161, 255, 0.28);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3), inset 0 0 18px rgba(72, 161, 255, 0.06);
+}
+.section-label {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8db9e4;
+}
+.risk-score-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.score-value {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #f8fcff;
+}
+.score-value span {
+    font-size: 0.95rem;
+    color: #9bb5cf;
+}
+.risk-pill {
+    border-radius: 999px;
+    padding: 0.24rem 0.62rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+.risk-pill.high {
+    color: #ffb2bc;
+    background: rgba(255, 77, 109, 0.16);
+    border-color: rgba(255, 77, 109, 0.42);
+}
+.risk-pill.medium {
+    color: #ffd8a8;
+    background: rgba(255, 166, 77, 0.16);
+    border-color: rgba(255, 166, 77, 0.42);
+}
+.risk-pill.low {
+    color: #adf3c2;
+    background: rgba(46, 204, 113, 0.15);
+    border-color: rgba(46, 204, 113, 0.42);
+}
+.meta-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.meta-list li {
+    padding: 0.28rem 0;
+    border-bottom: 1px dashed rgba(154, 184, 212, 0.24);
+}
+.meta-list li:last-child {
+    border-bottom: none;
+}
+.muted-text {
+    color: #9cb6cf;
+}
+.status-note {
+    display: flex;
+    align-items: center;
+    font-weight: 600;
+}
+.card-title {
+    color: #eaf3ff;
+    font-weight: 700;
+}
+.action-grid {
+    display: grid;
+    gap: 10px;
+}
+.action-card {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 10px;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid rgba(130, 176, 220, 0.28);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
+}
+.action-card.critical {
+    box-shadow: inset 3px 0 0 #ff4d6d;
+}
+.action-card.high {
+    box-shadow: inset 3px 0 0 #ffb347;
+}
+.action-card.medium {
+    box-shadow: inset 3px 0 0 #38bdf8;
+}
+.action-icon {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    color: #79c7ff;
+    font-size: 1rem;
+    padding-top: 2px;
+}
+.action-body h6 {
+    color: #f3f9ff;
+}
+.action-body p {
+    color: #bfd8ef;
+    font-size: 0.92rem;
+}
+.priority-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    color: #cde8ff;
+    border: 1px solid rgba(120, 194, 255, 0.35);
+    background: rgba(120, 194, 255, 0.12);
+}
+.improvements-list {
+    display: grid;
+    gap: 8px;
+}
+.improvement-item {
+    display: grid;
+    grid-template-columns: 18px 1fr;
+    gap: 8px;
+    align-items: start;
+    padding: 9px;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(115, 170, 255, 0.23);
+}
+.improvement-item i {
+    color: #58e58c;
+    margin-top: 3px;
+}
+.empty-state {
+    border: 1px dashed rgba(120, 194, 255, 0.35);
+    border-radius: 12px;
+    text-align: center;
+    padding: 24px;
+    color: #9cb6cf;
+}
+.empty-state i {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    color: #7abfff;
+}
+.back-btn {
+    background: linear-gradient(90deg, #1274d3 0%, #2e9cff 100%);
+    border: none;
+}
+@media (max-width: 767px) {
+    .score-value {
+        font-size: 1.6rem;
+    }
+    .action-card {
+        grid-template-columns: 30px 1fr;
+    }
+}
+</style>
+{% endblock %}

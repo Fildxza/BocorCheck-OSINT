@@ -7,63 +7,107 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<div class="container py-5" style="max-width: 1200px;">
-    <!-- Header Section -->
-    <div class="mb-5">
-        <div class="d-flex justify-content-between align-items-start mb-4">
-            <div>
-                <h1 class="fw-bold text-info mb-2">
-                    <i class="bi bi-search"></i> {{ t('history_title') }}
-                </h1>
-                <p class="text-secondary lead">{{ t('history_subtitle') }}</p>
-                {% if not is_admin and current_user %}
-                <span class="badge bg-info">Showing your investigations</span>
-                {% elif is_admin %}
-                <span class="badge bg-danger"><i class="bi bi-shield-lock"></i> Admin view: All investigations</span>
-                {% endif %}
+<div class="container py-4 history-soc" style="max-width: 1350px;">
+    {% set total_investigations = rows|length if rows else 0 %}
+    {% set avg_risk_score = ((rows|sum(attribute='risk_score') / total_investigations)|round(1)) if total_investigations > 0 else 0 %}
+    {% set max_risk_row = (rows|max(attribute='risk_score')) if rows else None %}
+    {% set total_breaches = rows|sum(attribute='breach_count') if rows else 0 %}
+
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="fw-bold text-info mb-1 soc-title">
+                <i class="bi bi-shield-lock-fill me-2"></i>{{ t('history_title') }}
+            </h1>
+            <p class="text-secondary mb-0">{{ t('history_subtitle') }}</p>
+            {% if not is_admin and current_user %}
+            <span class="badge soc-mode-badge mt-2"><i class="bi bi-person-check me-1"></i>Showing your investigations</span>
+            {% elif is_admin %}
+            <span class="badge soc-mode-badge admin mt-2"><i class="bi bi-shield-lock me-1"></i>Admin view: All investigations</span>
+            {% endif %}
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-info shadow-sm" href="{{ url_for('index', lang=current_lang) }}">
+                <i class="bi bi-house-door me-1"></i>{{ t('dashboard') }}
+            </a>
+            <a class="btn btn-outline-danger shadow-sm" href="{{ url_for('logout', lang=current_lang) if not is_admin else url_for('admin_logout', lang=current_lang) }}">
+                <i class="bi bi-box-arrow-right me-1"></i>{{ t('logout') }}
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="soc-stat-card cyan">
+                <div class="stat-icon"><i class="bi bi-journal-text"></i></div>
+                <div>
+                    <div class="stat-label">Total Investigations</div>
+                    <div class="stat-value">{{ total_investigations }}</div>
+                </div>
             </div>
-            <div class="d-flex gap-2">
-                <a class="btn btn-outline-info shadow-sm" href="{{ url_for('index', lang=current_lang) }}">
-                    <i class="bi bi-house-fill"></i> {{ t('dashboard') }}
-                </a>
-                <a class="btn btn-outline-danger shadow-sm" href="{{ url_for('logout', lang=current_lang) if not is_admin else url_for('admin_logout', lang=current_lang) }}">
-                    <i class="bi bi-box-arrow-right"></i> {{ t('logout') }}
-                </a>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="soc-stat-card amber">
+                <div class="stat-icon"><i class="bi bi-activity"></i></div>
+                <div>
+                    <div class="stat-label">Average Risk Score</div>
+                    <div class="stat-value">{{ avg_risk_score }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="soc-stat-card red">
+                <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                <div>
+                    <div class="stat-label">Highest Risk Case</div>
+                    <div class="stat-value">{{ max_risk_row.risk_score if max_risk_row else 0 }}</div>
+                    <small class="text-secondary">ID {{ max_risk_row.id if max_risk_row else '-' }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-xl-3">
+            <div class="soc-stat-card purple">
+                <div class="stat-icon"><i class="bi bi-bug-fill"></i></div>
+                <div>
+                    <div class="stat-label">Total Breach Events</div>
+                    <div class="stat-value">{{ total_breaches }}</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Filter Card -->
-    <div class="card bg-dark border-secondary mb-4 shadow">
-        <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0"><i class="bi bi-funnel"></i> Search & Filter</h5>
+    <div class="card soc-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 text-light"><i class="bi bi-funnel-fill me-2 text-info"></i>Search & Filter</h5>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('history', lang=current_lang) }}">
+                <i class="bi bi-arrow-clockwise me-1"></i>Reset
+            </a>
         </div>
         <div class="card-body">
             <form method="get" action="{{ url_for('history') }}" class="row g-3 align-items-end">
                 <input type="hidden" name="lang" value="{{ current_lang }}">
-                <div class="col-lg-2">
-                    <label for="start_date" class="form-label text-light">{{ t('start_date') }}</label>
+                <div class="col-lg-3">
+                    <label for="start_date" class="form-label text-light"><i class="bi bi-calendar-event me-1"></i>{{ t('start_date') }}</label>
                     <input type="date" class="form-control bg-dark text-light border-secondary" id="start_date" name="start_date" value="{{ start_date }}">
                 </div>
-                <div class="col-lg-2">
-                    <label for="end_date" class="form-label text-light">{{ t('end_date') }}</label>
+                <div class="col-lg-3">
+                    <label for="end_date" class="form-label text-light"><i class="bi bi-calendar-check me-1"></i>{{ t('end_date') }}</label>
                     <input type="date" class="form-control bg-dark text-light border-secondary" id="end_date" name="end_date" value="{{ end_date }}">
                 </div>
-                <div class="col-lg-2">
-                    <label for="risk_level" class="form-label text-light">{{ t('risk_level') }}</label>
+                <div class="col-lg-3">
+                    <label for="risk_level" class="form-label text-light"><i class="bi bi-shield-exclamation me-1"></i>{{ t('risk_level') }}</label>
                     <select id="risk_level" name="risk_level" class="form-select bg-dark text-light border-secondary">
                         <option value="" {% if not risk_level %}selected{% endif %}>{{ t('all') }}</option>
-                        <option value="LOW" {% if risk_level == 'LOW' %}selected{% endif %} class="bg-dark">LOW</option>
-                        <option value="MEDIUM" {% if risk_level == 'MEDIUM' %}selected{% endif %} class="bg-dark">MEDIUM</option>
-                        <option value="HIGH" {% if risk_level == 'HIGH' %}selected{% endif %} class="bg-dark">HIGH</option>
+                        <option value="LOW" {% if risk_level == 'LOW' %}selected{% endif %}>LOW</option>
+                        <option value="MEDIUM" {% if risk_level == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+                        <option value="HIGH" {% if risk_level == 'HIGH' %}selected{% endif %}>HIGH</option>
                     </select>
                 </div>
-                <div class="col-lg-6 d-flex gap-2">
-                    <button type="submit" class="btn btn-info flex-grow-1 shadow-sm">
-                        <i class="bi bi-search"></i> {{ t('apply_filter') }}
+                <div class="col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-info flex-grow-1">
+                        <i class="bi bi-search me-1"></i>{{ t('apply_filter') }}
                     </button>
-                    <a class="btn btn-success flex-grow-1 shadow-sm" href="{{ url_for('export_history_csv', start_date=start_date, end_date=end_date, risk_level=risk_level, lang=current_lang) }}">
-                        <i class="bi bi-download"></i> {{ t('export_csv') }}
+                    <a class="btn btn-success flex-grow-1" href="{{ url_for('export_history_csv', start_date=start_date, end_date=end_date, risk_level=risk_level, lang=current_lang) }}">
+                        <i class="bi bi-download me-1"></i>{{ t('export_csv') }}
                     </a>
                 </div>
             </form>
@@ -72,78 +116,163 @@
 
     {% if error %}
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-circle"></i> {{ error }}
+        <i class="bi bi-exclamation-octagon-fill me-1"></i>{{ error }}
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
     </div>
     {% endif %}
 
-    <!-- History Table Card -->
-    <div class="card bg-dark border-secondary shadow">
-        <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">
-                <i class="bi bi-clock-history"></i> Investigation History
-                {% if rows %}<span class="badge bg-info ms-2">{{ rows|length }} records</span>{% endif %}
+    {% if rows %}
+    <div class="card soc-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0 text-light"><i class="bi bi-graph-up-arrow me-2 text-info"></i>Risk & Breach Analytics</h5>
+        </div>
+        <div class="card-body">
+            <div class="chart-wrap">
+                <canvas id="historyRiskChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card soc-card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0 text-light">
+                <i class="bi bi-clock-history me-2 text-info"></i>Investigation History
             </h5>
+            <span class="badge bg-info">{{ rows|length }} records</span>
         </div>
         <div class="card-body p-0">
-            {% if error %}
-            <div class="alert alert-danger m-3">{{ error }}</div>
-            {% endif %}
-
-            {% if rows %}
             <div class="table-responsive">
-                <table class="table table-dark table-hover align-middle mb-0 text-nowrap">
+                <table class="table table-dark align-middle mb-0 text-nowrap soc-table">
                     <thead>
-                        <tr class="border-bottom border-secondary">
-                            <th><i class="bi bi-hash"></i> ID</th>
-                            <th><i class="bi bi-envelope"></i> {{ t('email') }}</th>
-                            <th><i class="bi bi-telephone"></i> {{ t('phone_number') }}</th>
-                            <th><i class="bi bi-shield-exclamation"></i> {{ t('breaches') }}</th>
-                            <th><i class="bi bi-graph-up"></i> {{ t('risk_score') }}</th>
-                            <th><i class="bi bi-exclamation-triangle"></i> {{ t('risk_level') }}</th>
-                            <th><i class="bi bi-calendar-check"></i> {{ t('checked_at') }}</th>
-                            <th><i class="bi bi-tools"></i> Forensic Tools</th>
+                        <tr>
+                            <th></th>
+                            <th><i class="bi bi-hash me-1"></i>ID</th>
+                            <th><i class="bi bi-envelope me-1"></i>{{ t('email') }}</th>
+                            <th><i class="bi bi-telephone me-1"></i>{{ t('phone_number') }}</th>
+                            <th><i class="bi bi-shield-exclamation me-1"></i>{{ t('breaches') }}</th>
+                            <th><i class="bi bi-speedometer2 me-1"></i>{{ t('risk_score') }}</th>
+                            <th><i class="bi bi-exclamation-triangle me-1"></i>{{ t('risk_level') }}</th>
+                            <th><i class="bi bi-patch-check me-1"></i>Status</th>
+                            <th><i class="bi bi-calendar-check me-1"></i>{{ t('checked_at') }}</th>
+                            <th><i class="bi bi-tools me-1"></i>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for row in rows %}
-                        <tr>
+                        {% set is_critical = row.risk_score >= 90 %}
+                        {% set risk_label = 'CRITICAL' if is_critical else row.risk_level %}
+                        {% if row.risk_score >= 85 %}
+                            {% set progress_class = 'bg-danger' %}
+                        {% elif row.risk_score >= 60 %}
+                            {% set progress_class = 'bg-warning' %}
+                        {% else %}
+                            {% set progress_class = 'bg-success' %}
+                        {% endif %}
+                        {% if risk_label == 'CRITICAL' %}
+                            {% set risk_class = 'risk-critical' %}
+                            {% set risk_icon = 'bi-radioactive' %}
+                        {% elif risk_label == 'HIGH' %}
+                            {% set risk_class = 'risk-high' %}
+                            {% set risk_icon = 'bi-exclamation-triangle-fill' %}
+                        {% elif risk_label == 'MEDIUM' %}
+                            {% set risk_class = 'risk-medium' %}
+                            {% set risk_icon = 'bi-exclamation-circle' %}
+                        {% else %}
+                            {% set risk_class = 'risk-low' %}
+                            {% set risk_icon = 'bi-check-circle' %}
+                        {% endif %}
+                        {% if row.risk_score >= 80 or row.risk_level == 'HIGH' %}
+                            {% set status_text = 'Critical' %}
+                            {% set status_class = 'status-critical' %}
+                        {% elif row.breach_count > 0 %}
+                            {% set status_text = 'Investigated' %}
+                            {% set status_class = 'status-investigated' %}
+                        {% else %}
+                            {% set status_text = 'Pending' %}
+                            {% set status_class = 'status-pending' %}
+                        {% endif %}
+                        <tr class="main-row">
+                            <td>
+                                <button
+                                    class="btn btn-sm btn-outline-secondary"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#details-{{ row.id }}"
+                                    aria-expanded="false"
+                                    aria-controls="details-{{ row.id }}"
+                                    title="Expand case details"
+                                >
+                                    <i class="bi bi-chevron-down"></i>
+                                </button>
+                            </td>
                             <td><span class="badge bg-dark text-light border border-secondary">{{ row.id }}</span></td>
                             <td><code class="text-info">{{ row.email if row.email else '-' }}</code></td>
                             <td><code class="text-secondary">{{ row.phone_number if row.phone_number else '-' }}</code></td>
                             <td><span class="badge bg-warning text-dark">{{ row.breach_count }}</span></td>
                             <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height: 20px; width: 50px;">
-                                        <div class="progress-bar {% if row.risk_score >= 75 %}bg-danger{% elif row.risk_score >= 50 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ row.risk_score }}%"></div>
+                                <div class="d-flex align-items-center gap-2" style="min-width: 190px;">
+                                    <div class="progress flex-grow-1 score-progress">
+                                        <div class="progress-bar {{ progress_class }} risk-fill" data-risk="{{ row.risk_score }}" style="width: 0%"></div>
                                     </div>
-                                    <span class="text-light">{{ row.risk_score }}</span>
+                                    <span class="text-light fw-semibold">{{ row.risk_score }}</span>
                                 </div>
                             </td>
                             <td>
-                                {% if row.risk_level == 'HIGH' %}
-                                    <span class="badge bg-danger"><i class="bi bi-exclamation-circle"></i> HIGH</span>
-                                {% elif row.risk_level == 'MEDIUM' %}
-                                    <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> MEDIUM</span>
-                                {% else %}
-                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> LOW</span>
-                                {% endif %}
+                                <span class="risk-pill {{ risk_class }}">
+                                    <i class="bi {{ risk_icon }} me-1"></i>{{ risk_label }}
+                                </span>
                             </td>
+                            <td><span class="status-pill {{ status_class }}">{{ status_text }}</span></td>
                             <td><small class="text-secondary">{{ row.checked_at }}</small></td>
                             <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="/timeline/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-info" title="View breach timeline">
-                                        <i class="bi bi-calendar3"></i> Timeline
+                                <div class="d-flex gap-1">
+                                    <a href="/timeline/{{ row.id }}?lang={{ current_lang }}" class="btn btn-sm btn-outline-info icon-action" data-bs-toggle="tooltip" data-bs-title="View Timeline Analysis">
+                                        <i class="bi bi-calendar3"></i>
                                     </a>
-                                    <a href="/darkweb/check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-danger" title="Check dark web">
-                                        <i class="bi bi-globe"></i> Dark Web
+                                    <a href="/darkweb/check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-sm btn-outline-danger icon-action" data-bs-toggle="tooltip" data-bs-title="Run Dark Web Check">
+                                        <i class="bi bi-globe2"></i>
                                     </a>
-                                    <a href="/analysis/data-types/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-warning" title="Data analysis">
-                                        <i class="bi bi-bar-chart"></i> Data
+                                    <a href="/analysis/data-types/{{ row.id }}?lang={{ current_lang }}" class="btn btn-sm btn-outline-warning icon-action" data-bs-toggle="tooltip" data-bs-title="View Data Type Analysis">
+                                        <i class="bi bi-bar-chart-line"></i>
                                     </a>
-                                    <a href="/analysis/hash-check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-outline-info" title="Hash algorithm analysis">
-                                        <i class="bi bi-key"></i> Hash
+                                    <a href="/analysis/hash-check/{{ row.id }}?lang={{ current_lang }}" class="btn btn-sm btn-outline-primary icon-action" data-bs-toggle="tooltip" data-bs-title="Inspect Hash Risk">
+                                        <i class="bi bi-key"></i>
                                     </a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="detail-row collapse" id="details-{{ row.id }}">
+                            <td colspan="10">
+                                <div class="detail-panel">
+                                    <div class="row g-3">
+                                        <div class="col-lg-4">
+                                            <div class="detail-box">
+                                                <h6><i class="bi bi-journal-check me-1 text-info"></i>Detailed Findings</h6>
+                                                <ul class="mb-0">
+                                                    <li>Case ID {{ row.id }} recorded {{ row.checked_at }}</li>
+                                                    <li>Total breach incidents detected: {{ row.breach_count }}</li>
+                                                    <li>Current risk score: {{ row.risk_score }}/100</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-4">
+                                            <div class="detail-box">
+                                                <h6><i class="bi bi-diagram-3 me-1 text-warning"></i>Timeline Preview</h6>
+                                                <p class="mb-1">Investigation initiated and scored from collected breach evidence.</p>
+                                                <a href="/timeline/{{ row.id }}?lang={{ current_lang }}" class="btn btn-sm btn-outline-info">Open Full Timeline</a>
+                                            </div>
+                                        </div>
+                                        <div class="col-lg-4">
+                                            <div class="detail-box">
+                                                <h6><i class="bi bi-database-exclamation me-1 text-danger"></i>Exposed Data Summary</h6>
+                                                {% if row.breach_count > 0 %}
+                                                <p class="mb-0">Potential exposure indicators exist for this case. Use Data and Hash tools for forensic depth.</p>
+                                                {% else %}
+                                                <p class="mb-0">No direct breach exposure found in this record. Continue periodic monitoring.</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -151,13 +280,284 @@
                     </tbody>
                 </table>
             </div>
-            {% else %}
-            <div class="alert alert-info m-3 mb-0">
-                <i class="bi bi-info-circle"></i> No investigations yet. <a href="{{ url_for('index', lang=current_lang) }}" class="alert-link">Go to Dashboard</a> to start a new check.
-            </div>
-            {% endif %}
         </div>
     </div>
+    {% else %}
+    <div class="card soc-card">
+        <div class="card-body py-5 text-center empty-soc-state">
+            <div class="radar-pulse mx-auto mb-3">
+                <i class="bi bi-radar"></i>
+            </div>
+            <h4 class="text-info mb-2">No investigations found</h4>
+            <p class="text-secondary mb-3">Start your first investigation to populate SOC analytics and forensic timeline.</p>
+            <a href="{{ url_for('index', lang=current_lang) }}" class="btn btn-info">
+                <i class="bi bi-play-circle me-1"></i>Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+.history-soc .soc-title {
+    letter-spacing: 0.3px;
+}
+.history-soc .soc-mode-badge {
+    background: rgba(37, 172, 255, 0.2);
+    color: #8fd6ff;
+    border: 1px solid rgba(37, 172, 255, 0.45);
+}
+.history-soc .soc-mode-badge.admin {
+    background: rgba(248, 81, 73, 0.16);
+    color: #ffaba5;
+    border: 1px solid rgba(248, 81, 73, 0.45);
+}
+.soc-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    background: linear-gradient(145deg, #121a27, #0f1520);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 0 18px rgba(88, 166, 255, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.soc-stat-card:hover {
+    transform: translateY(-2px);
+}
+.soc-stat-card .stat-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 1.2rem;
+}
+.soc-stat-card .stat-label {
+    color: #8ea4bf;
+    font-size: 0.84rem;
+}
+.soc-stat-card .stat-value {
+    color: #e6edf3;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.soc-stat-card.cyan .stat-icon { background: rgba(88, 166, 255, 0.2); color: #79c0ff; }
+.soc-stat-card.amber .stat-icon { background: rgba(210, 153, 34, 0.2); color: #f2cc60; }
+.soc-stat-card.red .stat-icon { background: rgba(248, 81, 73, 0.2); color: #ff938b; }
+.soc-stat-card.purple .stat-icon { background: rgba(163, 113, 247, 0.2); color: #c5a3ff; }
+.soc-card {
+    background: linear-gradient(145deg, #161b22, #131922);
+    border: 1px solid #30363d;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3), inset 0 0 24px rgba(88, 166, 255, 0.03);
+}
+.chart-wrap {
+    position: relative;
+    min-height: 310px;
+}
+.soc-table thead th {
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.soc-table .main-row {
+    transition: background-color 0.2s ease;
+}
+.soc-table .main-row:hover {
+    background-color: rgba(88, 166, 255, 0.08);
+}
+.score-progress {
+    height: 10px;
+}
+.risk-pill,
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.24rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.risk-critical { color: #ffb3bc; background: rgba(248,81,73,.2); border: 1px solid rgba(248,81,73,.45); }
+.risk-high { color: #ff938b; background: rgba(248,81,73,.15); border: 1px solid rgba(248,81,73,.35); }
+.risk-medium { color: #f2cc60; background: rgba(210,153,34,.15); border: 1px solid rgba(210,153,34,.35); }
+.risk-low { color: #7ee787; background: rgba(63,185,80,.15); border: 1px solid rgba(63,185,80,.35); }
+.status-critical { color: #ffb3bc; background: rgba(248,81,73,.2); border: 1px solid rgba(248,81,73,.45); }
+.status-investigated { color: #8fd6ff; background: rgba(88,166,255,.16); border: 1px solid rgba(88,166,255,.4); }
+.status-pending { color: #b1bac4; background: rgba(139,148,158,.16); border: 1px solid rgba(139,148,158,.35); }
+.icon-action {
+    min-width: 33px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.icon-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.32);
+}
+.detail-row td {
+    border-top: none;
+    background: rgba(13, 17, 23, 0.95);
+}
+.detail-panel {
+    border: 1px solid rgba(88, 166, 255, 0.24);
+    border-radius: 10px;
+    padding: 12px;
+}
+.detail-box {
+    background: rgba(22, 27, 34, 0.88);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px;
+    min-height: 110px;
+}
+.detail-box h6 {
+    color: #d2e6f8;
+    font-size: 0.92rem;
+}
+.detail-box p,
+.detail-box li {
+    color: #9eb4ca;
+    font-size: 0.86rem;
+}
+.empty-soc-state .radar-pulse {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    border: 1px solid rgba(88, 166, 255, 0.4);
+    display: grid;
+    place-items: center;
+    color: #79c0ff;
+    font-size: 2rem;
+    animation: radarPulse 1.8s infinite ease-in-out;
+}
+@keyframes radarPulse {
+    0% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0.35); }
+    70% { box-shadow: 0 0 0 18px rgba(88, 166, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(88, 166, 255, 0); }
+}
+</style>
+
+{% if rows %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="historyChartPayload" type="application/json">
+{
+    "labels": [{% for row in rows|reverse %}"{{ row.checked_at }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+    "riskScores": [{% for row in rows|reverse %}{{ row.risk_score }}{% if not loop.last %}, {% endif %}{% endfor %}],
+    "breachCounts": [{% for row in rows|reverse %}{{ row.breach_count }}{% if not loop.last %}, {% endif %}{% endfor %}]
+}
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.risk-fill').forEach(function (bar) {
+        const score = Number(bar.getAttribute('data-risk') || '0');
+        const normalized = Math.min(100, Math.max(0, score));
+        bar.style.width = normalized + '%';
+    });
+
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    const chartCanvas = document.getElementById('historyRiskChart');
+    if (!chartCanvas) {
+        return;
+    }
+
+    const payload = document.getElementById('historyChartPayload');
+    let chartData = { labels: [], riskScores: [], breachCounts: [] };
+    if (payload) {
+        try {
+            chartData = JSON.parse(payload.textContent || '{}');
+        } catch (error) {
+            chartData = { labels: [], riskScores: [], breachCounts: [] };
+        }
+    }
+
+    const labels = chartData.labels || [];
+    const riskScores = chartData.riskScores || [];
+    const breachCounts = chartData.breachCounts || [];
+
+    new Chart(chartCanvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    type: 'line',
+                    label: 'Risk Score',
+                    data: riskScores,
+                    borderColor: '#f85149',
+                    backgroundColor: 'rgba(248, 81, 73, 0.2)',
+                    borderWidth: 2,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    yAxisID: 'y'
+                },
+                {
+                    type: 'bar',
+                    label: 'Breach Count',
+                    data: breachCounts,
+                    backgroundColor: 'rgba(88, 166, 255, 0.45)',
+                    borderColor: '#58a6ff',
+                    borderWidth: 1,
+                    borderRadius: 5,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1300,
+                easing: 'easeOutQuart'
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#c9d1d9'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: '#9eb4ca',
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 7
+                    },
+                    grid: {
+                        color: 'rgba(201, 209, 217, 0.08)'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    position: 'left',
+                    ticks: {
+                        color: '#ff938b'
+                    },
+                    grid: {
+                        color: 'rgba(248, 81, 73, 0.1)'
+                    }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    ticks: {
+                        color: '#8fd6ff'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
 
 {% endblock %}
