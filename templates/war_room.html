@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}SOC War Room - BocorCheck{% endblock %}
+
+{% block content %}
+<div class="container py-4 war-room-page" style="max-width: 1400px;">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="war-room-title mb-1"><i class="bi bi-broadcast-pin me-2"></i>BocorCheck Breach War Room</h1>
+            <p class="text-secondary mb-0">Live SOC view for timeline, dark web alerts, risk trend, and mitigation queue.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('history', lang=current_lang) }}" class="btn btn-outline-info btn-sm"><i class="bi bi-clock-history me-1"></i>History</a>
+            <a href="{{ url_for('monitoring_dashboard', lang=current_lang) }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-radar me-1"></i>Monitoring</a>
+            <a href="{{ url_for('index', lang=current_lang) }}" class="btn btn-outline-light btn-sm"><i class="bi bi-house me-1"></i>Dashboard</a>
+        </div>
+    </div>
+
+    <div class="refresh-banner mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <strong><i class="bi bi-arrow-repeat me-1"></i>Auto-refresh enabled</strong>
+                <span class="text-secondary ms-2">Next refresh in <span id="refreshCountdown">{{ refresh_seconds }}</span>s</span>
+            </div>
+            <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, lang=current_lang) }}" class="btn btn-sm btn-outline-info">Refresh Now</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Cases</div>
+                <div class="kpi-value text-info">{{ stats.total_investigations }}</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="kpi-label">Avg Risk</div>
+                <div class="kpi-value text-warning">{{ stats.avg_risk_score }}</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-xl-2">
+            <div class="kpi-card">
+                <div class="kpi-label">Critical Cases</div>
+                <div class="kpi-value text-danger">{{ stats.critical_cases }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Open Dark Web Alerts</div>
+                <div class="kpi-value text-danger">{{ darkweb_alerts|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-6 col-xl-3">
+            <div class="kpi-card">
+                <div class="kpi-label">Mitigation Queue</div>
+                <div class="kpi-value text-success">{{ mitigation_queue|length }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ticker-card mb-4">
+        <div class="ticker-header"><i class="bi bi-megaphone me-2"></i>Incident Ticker</div>
+        {% if incident_ticker %}
+        <div class="ticker-body d-flex gap-2 align-items-center">
+            <span id="tickerSeverity" class="ticker-severity">INFO</span>
+            <span id="tickerText" class="ticker-text"></span>
+        </div>
+        {% else %}
+        <div class="ticker-empty">No active incidents in ticker stream.</div>
+        {% endif %}
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-8">
+            <div class="war-card h-100">
+                <div class="card-header-lite"><i class="bi bi-graph-up-arrow me-2"></i>Risk Trend (Live Window)</div>
+                <div class="chart-wrap">
+                    <canvas id="warRoomTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="war-card h-100">
+                <div class="card-header-lite"><i class="bi bi-shield-check me-2"></i>Mitigation Queue</div>
+                <div class="queue-list">
+                    {% if mitigation_queue %}
+                        {% for item in mitigation_queue %}
+                        <div class="queue-item">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <strong class="text-light">#{{ item.investigation_id }} {{ item.email }}</strong>
+                                <span class="risk-pill {% if item.risk_level == 'HIGH' %}high{% elif item.risk_level == 'MEDIUM' %}medium{% else %}low{% endif %}">{{ item.risk_level }}</span>
+                            </div>
+                            <p class="mb-1">{{ item.top_action }}</p>
+                            <a href="{{ url_for('mitigation_planning', investigation_id=item.investigation_id, lang=current_lang) }}" class="btn btn-sm btn-outline-success">Open Mitigation</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-note">No pending mitigation queue.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-xl-6">
+            <div class="war-card h-100">
+                <div class="card-header-lite"><i class="bi bi-clock-history me-2"></i>Timeline Feed</div>
+                {% if timeline_events %}
+                <div class="table-responsive">
+                    <table class="table table-dark mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Case</th>
+                                <th>Breach</th>
+                                <th>Date</th>
+                                <th>Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in timeline_events[:10] %}
+                            <tr>
+                                <td>#{{ event.investigation_id }}</td>
+                                <td>{{ event.breach_name or 'Unknown' }}</td>
+                                <td>{{ event.breach_date or event.checked_at }}</td>
+                                <td><span class="badge {% if (event.risk_score or 0) >= 75 %}bg-danger{% elif (event.risk_score or 0) >= 40 %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ event.risk_score or 0 }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-note">No timeline activity found yet.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-xl-6">
+            <div class="war-card h-100">
+                <div class="card-header-lite"><i class="bi bi-incognito me-2"></i>Dark Web Alerts</div>
+                {% if darkweb_alerts %}
+                <div class="table-responsive">
+                    <table class="table table-dark mb-0 align-middle">
+                        <thead>
+                            <tr>
+                                <th>Severity</th>
+                                <th>Platform</th>
+                                <th>Snippet</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for finding in darkweb_alerts[:10] %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if finding.severity == 'CRITICAL' %}bg-danger{% elif finding.severity == 'HIGH' %}bg-warning text-dark{% elif finding.severity == 'MEDIUM' %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ finding.severity }}</span>
+                                </td>
+                                <td>{{ finding.found_on_platform }}</td>
+                                <td>{{ finding.snippet }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-note">No unresolved dark web alerts.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="warRoomPayload" type="application/json">
+{
+  "labels": {{ risk_trend_labels|tojson }},
+  "riskScores": {{ risk_trend_scores|tojson }},
+  "breachCounts": {{ risk_trend_breaches|tojson }},
+  "ticker": {{ incident_ticker|tojson }},
+  "refreshSeconds": {{ refresh_seconds }}
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const payloadNode = document.getElementById('warRoomPayload');
+    let payload = { labels: [], riskScores: [], breachCounts: [], ticker: [], refreshSeconds: 30 };
+    if (payloadNode) {
+        try {
+            payload = JSON.parse(payloadNode.textContent || '{}');
+        } catch (e) {
+            payload = { labels: [], riskScores: [], breachCounts: [], ticker: [], refreshSeconds: 30 };
+        }
+    }
+
+    const countdown = document.getElementById('refreshCountdown');
+    let seconds = Number(payload.refreshSeconds || 30);
+    setInterval(function () {
+        seconds -= 1;
+        if (seconds <= 0) {
+            window.location.reload();
+            return;
+        }
+        if (countdown) {
+            countdown.textContent = String(seconds);
+        }
+    }, 1000);
+
+    const tickerItems = Array.isArray(payload.ticker) ? payload.ticker : [];
+    const tickerText = document.getElementById('tickerText');
+    const tickerSeverity = document.getElementById('tickerSeverity');
+    if (tickerItems.length && tickerText && tickerSeverity) {
+        let idx = 0;
+        const renderTicker = function () {
+            const item = tickerItems[idx];
+            tickerText.textContent = '[' + (item.time || 'Recent') + '] ' + (item.text || 'Incident signal');
+            const sev = String(item.severity || 'INFO').toUpperCase();
+            tickerSeverity.textContent = sev;
+            tickerSeverity.className = 'ticker-severity sev-' + sev.toLowerCase();
+            idx = (idx + 1) % tickerItems.length;
+        };
+        renderTicker();
+        setInterval(renderTicker, 2800);
+    }
+
+    const canvas = document.getElementById('warRoomTrendChart');
+    if (canvas) {
+        new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: payload.labels || [],
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Risk Score',
+                        data: payload.riskScores || [],
+                        borderColor: '#f85149',
+                        backgroundColor: 'rgba(248, 81, 73, 0.18)',
+                        tension: 0.35,
+                        borderWidth: 2,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Breach Count',
+                        data: payload.breachCounts || [],
+                        backgroundColor: 'rgba(88, 166, 255, 0.45)',
+                        borderColor: '#58a6ff',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#c9d1d9' }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#9eb4ca', maxTicksLimit: 8 },
+                        grid: { color: 'rgba(201,209,217,0.08)' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        ticks: { color: '#ff938b' },
+                        grid: { color: 'rgba(248,81,73,0.12)' }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        ticks: { color: '#79c0ff' },
+                        grid: { drawOnChartArea: false }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.war-room-title { color: #e6edf3; font-weight: 800; }
+.refresh-banner {
+    background: linear-gradient(145deg, #111a29, #0f1622);
+    border: 1px solid rgba(88,166,255,.3);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.kpi-card {
+    background: linear-gradient(145deg, #161b22, #121720);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: inset 0 0 16px rgba(88,166,255,.06);
+}
+.kpi-label { color: #8b949e; font-size: .82rem; text-transform: uppercase; }
+.kpi-value { font-size: 1.5rem; font-weight: 700; }
+.ticker-card {
+    background: #151b25;
+    border: 1px solid rgba(248,81,73,.35);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.ticker-header {
+    background: rgba(248,81,73,.12);
+    border-bottom: 1px solid rgba(248,81,73,.25);
+    color: #ffb3bc;
+    padding: 8px 12px;
+    font-weight: 700;
+}
+.ticker-body { padding: 10px 12px; }
+.ticker-severity {
+    border-radius: 999px;
+    padding: .2rem .55rem;
+    font-size: .72rem;
+    font-weight: 700;
+}
+.sev-critical, .sev-high { background: rgba(248,81,73,.2); color: #ffb3bc; border: 1px solid rgba(248,81,73,.4); }
+.sev-medium { background: rgba(210,153,34,.2); color: #f2cc60; border: 1px solid rgba(210,153,34,.35); }
+.sev-low, .sev-info { background: rgba(88,166,255,.2); color: #8fd6ff; border: 1px solid rgba(88,166,255,.35); }
+.ticker-text { color: #d2dde8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticker-empty { padding: 12px; color: #9eb4ca; }
+.war-card {
+    background: linear-gradient(145deg, #161b22, #121722);
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    box-shadow: 0 8px 18px rgba(0,0,0,.25);
+}
+.card-header-lite {
+    border-bottom: 1px solid rgba(88,166,255,.2);
+    padding: 10px 12px;
+    color: #d7e7f6;
+    font-weight: 700;
+}
+.chart-wrap { min-height: 300px; padding: 8px 12px 12px; }
+.queue-list { padding: 10px 12px; display: grid; gap: 10px; max-height: 330px; overflow: auto; }
+.queue-item {
+    border: 1px solid rgba(88,166,255,.22);
+    border-radius: 10px;
+    background: rgba(13,17,23,.82);
+    padding: 10px;
+}
+.queue-item p { color: #b8cde0; font-size: .88rem; }
+.risk-pill {
+    border-radius: 999px;
+    padding: .2rem .5rem;
+    font-size: .7rem;
+    font-weight: 700;
+}
+.risk-pill.high { background: rgba(248,81,73,.2); color: #ffb3bc; border: 1px solid rgba(248,81,73,.4); }
+.risk-pill.medium { background: rgba(210,153,34,.2); color: #f2cc60; border: 1px solid rgba(210,153,34,.35); }
+.risk-pill.low { background: rgba(63,185,80,.2); color: #7ee787; border: 1px solid rgba(63,185,80,.35); }
+.empty-note { color: #9eb4ca; padding: 12px; }
+</style>
+{% endblock %}

@@ -2331,6 +2331,173 @@ def subscribe_monitoring():
         return {"success": False, "message": message}, 400
 
 
+@app.route("/war-room", methods=["GET"])
+@app.route("/war-room/", methods=["GET"])
+@login_required
+def war_room_dashboard():
+    """
+    SOC War Room dashboard:
+    - Live risk trend
+    - Incident ticker
+    - Dark web alert stream
+    - Mitigation action queue
+    """
+    user_id = session.get("user_id")
+    refresh_seconds = request.args.get("refresh", default=30, type=int) or 30
+    refresh_seconds = max(10, min(300, refresh_seconds))
+
+    stats = {
+        "total_investigations": 0,
+        "avg_risk_score": 0,
+        "critical_cases": 0,
+    }
+    recent_investigations: List[Dict[str, Any]] = []
+    risk_trend_rows: List[Dict[str, Any]] = []
+    timeline_events: List[Dict[str, Any]] = []
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(dictionary=True) as cursor:
+                cursor.execute(
+                    """
+                    SELECT
+                        COUNT(*) AS total_investigations,
+                        COALESCE(ROUND(AVG(risk_score)), 0) AS avg_risk_score,
+                        SUM(CASE WHEN risk_score >= 80 OR risk_level = 'HIGH' THEN 1 ELSE 0 END) AS critical_cases
+                    FROM investigation_logs
+                    WHERE user_id = %s
+                    """,
+                    (user_id,),
+                )
+                stats_row = cursor.fetchone() or {}
+                stats = {
+                    "total_investigations": int(stats_row.get("total_investigations") or 0),
+                    "avg_risk_score": int(stats_row.get("avg_risk_score") or 0),
+                    "critical_cases": int(stats_row.get("critical_cases") or 0),
+                }
+
+                cursor.execute(
+                    """
+                    SELECT id, email, phone_number, breach_count, risk_score, risk_level, checked_at
+                    FROM investigation_logs
+                    WHERE user_id = %s
+                    ORDER BY checked_at DESC
+                    LIMIT 15
+                    """,
+                    (user_id,),
+                )
+                recent_investigations = cursor.fetchall() or []
+
+                cursor.execute(
+                    """
+                    SELECT id, risk_score, breach_count, checked_at
+                    FROM investigation_logs
+                    WHERE user_id = %s
+                    ORDER BY checked_at DESC
+                    LIMIT 12
+                    """,
+                    (user_id,),
+                )
+                risk_trend_rows = cursor.fetchall() or []
+
+                cursor.execute(
+                    """
+                    SELECT
+                        br.investigation_id,
+                        br.breach_name,
+                        br.breach_date,
+                        br.data_exposed,
+                        il.risk_score,
+                        il.risk_level,
+                        il.checked_at,
+                        il.email
+                    FROM breach_results br
+                    INNER JOIN investigation_logs il ON br.investigation_id = il.id
+                    WHERE il.user_id = %s
+                    ORDER BY COALESCE(br.breach_date, DATE(il.checked_at)) DESC, br.id DESC
+                    LIMIT 20
+                    """,
+                    (user_id,),
+                )
+                timeline_events = cursor.fetchall() or []
+    except MySQLError as e:
+        print(f"Error building war room dashboard: {e}")
+
+    darkweb_alerts = get_darkweb_findings(user_id, unresolved_only=True)[:12]
+
+    risk_trend_labels: List[str] = []
+    risk_trend_scores: List[int] = []
+    risk_trend_breaches: List[int] = []
+    for item in reversed(risk_trend_rows):
+        checked_at = item.get("checked_at")
+        if isinstance(checked_at, (datetime, date)):
+            label = checked_at.strftime("%m-%d %H:%M")
+        else:
+            label = str(checked_at or "-")
+        risk_trend_labels.append(label)
+        risk_trend_scores.append(int(item.get("risk_score") or 0))
+        risk_trend_breaches.append(int(item.get("breach_count") or 0))
+
+    mitigation_queue: List[Dict[str, Any]] = []
+    for item in recent_investigations:
+        risk_score = int(item.get("risk_score") or 0)
+        breach_count = int(item.get("breach_count") or 0)
+        if risk_score < 40 and breach_count == 0:
+            continue
+
+        risk_level = str(item.get("risk_level") or _risk_level_from_score(risk_score)).upper()
+        tips = get_mitigation_tips(risk_level.title(), breach_count > 0)
+        mitigation_queue.append(
+            {
+                "investigation_id": item.get("id"),
+                "email": item.get("email") or "Unknown",
+                "risk_score": risk_score,
+                "risk_level": risk_level,
+                "breach_count": breach_count,
+                "top_action": tips[0] if tips else "Review account security posture.",
+            }
+        )
+        if len(mitigation_queue) >= 8:
+            break
+
+    incident_ticker: List[Dict[str, Any]] = []
+    for alert in darkweb_alerts[:6]:
+        incident_ticker.append(
+            {
+                "severity": alert.get("severity") or "MEDIUM",
+                "text": f"Dark web alert on {alert.get('found_on_platform', 'Unknown source')}: {alert.get('snippet', 'New exposure signal')}",
+                "time": alert.get("first_detected") or alert.get("created_at") or "Recent",
+            }
+        )
+
+    for event in timeline_events[:8]:
+        event_risk = int(event.get("risk_score") or 0)
+        incident_ticker.append(
+            {
+                "severity": "HIGH" if event_risk >= 75 else ("MEDIUM" if event_risk >= 40 else "LOW"),
+                "text": f"Timeline event: {event.get('breach_name', 'Unknown breach')} linked to case #{event.get('investigation_id')}",
+                "time": event.get("breach_date") or event.get("checked_at") or "Recent",
+            }
+        )
+
+    incident_ticker = incident_ticker[:20]
+
+    return render_template(
+        "war_room.html",
+        stats=stats,
+        recent_investigations=recent_investigations,
+        timeline_events=timeline_events,
+        darkweb_alerts=darkweb_alerts,
+        mitigation_queue=mitigation_queue,
+        incident_ticker=incident_ticker,
+        risk_trend_labels=risk_trend_labels,
+        risk_trend_scores=risk_trend_scores,
+        risk_trend_breaches=risk_trend_breaches,
+        refresh_seconds=refresh_seconds,
+        tr=tr,
+    )
+
+
 @app.route("/timeline/<int:investigation_id>", methods=["GET"])
 @login_required
 def view_breach_timeline(investigation_id: int):
