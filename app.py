@@ -2345,6 +2345,7 @@ def war_room_dashboard():
     user_id = session.get("user_id")
     refresh_seconds = request.args.get("refresh", default=30, type=int) or 30
     refresh_seconds = max(10, min(300, refresh_seconds))
+    force_demo_mode = str(request.args.get("demo", "")).strip().lower() in {"1", "true", "yes"}
 
     stats = {
         "total_investigations": 0,
@@ -2482,6 +2483,119 @@ def war_room_dashboard():
 
     incident_ticker = incident_ticker[:20]
 
+    has_live_data = bool(
+        recent_investigations
+        or timeline_events
+        or darkweb_alerts
+        or mitigation_queue
+        or risk_trend_rows
+    )
+    is_simulated_data = force_demo_mode or not has_live_data
+
+    if is_simulated_data:
+        risk_trend_labels = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00"]
+        risk_trend_scores = [36, 52, 67, 74, 81, 69]
+        risk_trend_breaches = [1, 2, 2, 3, 4, 2]
+
+        stats = {
+            "total_investigations": 8,
+            "avg_risk_score": 63,
+            "critical_cases": 2,
+        }
+
+        recent_investigations = [
+            {
+                "id": 901,
+                "email": "ops.demo@company.com",
+                "phone_number": "+60135550011",
+                "breach_count": 3,
+                "risk_score": 84,
+                "risk_level": "HIGH",
+                "checked_at": "2026-04-08 13:20:00",
+            },
+            {
+                "id": 902,
+                "email": "staff.demo@company.com",
+                "phone_number": "+601136005936",
+                "breach_count": 2,
+                "risk_score": 67,
+                "risk_level": "MEDIUM",
+                "checked_at": "2026-04-08 12:10:00",
+            },
+        ]
+
+        timeline_events = [
+            {
+                "investigation_id": 901,
+                "breach_name": "Credential Dump Exchange",
+                "breach_date": "2026-04-08",
+                "checked_at": "2026-04-08 13:20:00",
+                "risk_score": 84,
+            },
+            {
+                "investigation_id": 902,
+                "breach_name": "Marketplace Leak Batch",
+                "breach_date": "2026-04-07",
+                "checked_at": "2026-04-08 12:10:00",
+                "risk_score": 67,
+            },
+        ]
+
+        darkweb_alerts = [
+            {
+                "severity": "CRITICAL",
+                "found_on_platform": "Pastebin Mirror",
+                "snippet": "Credential pair exposed with verified email list",
+            },
+            {
+                "severity": "HIGH",
+                "found_on_platform": "Telegram Seller Bot",
+                "snippet": "Phone data advertised for SIM swap targeting",
+            },
+        ]
+
+        mitigation_queue = [
+            {
+                "investigation_id": 901,
+                "email": "ops.demo@company.com",
+                "risk_score": 84,
+                "risk_level": "HIGH",
+                "breach_count": 3,
+                "top_action": "Reset privileged account passwords and enable MFA immediately.",
+                "is_demo": True,
+            },
+            {
+                "investigation_id": 902,
+                "email": "staff.demo@company.com",
+                "risk_score": 67,
+                "risk_level": "MEDIUM",
+                "breach_count": 2,
+                "top_action": "Rotate reused credentials and review recovery channels.",
+                "is_demo": True,
+            },
+        ]
+
+        incident_ticker = [
+            {
+                "severity": "CRITICAL",
+                "text": "Dark web broker posted fresh credential bundle linked to corporate domain.",
+                "time": "2026-04-08 14:05",
+            },
+            {
+                "severity": "HIGH",
+                "text": "Timeline correlation detected repeat exposure pattern in marketplace leaks.",
+                "time": "2026-04-08 13:40",
+            },
+            {
+                "severity": "MEDIUM",
+                "text": "Mitigation queue updated with high-priority password hardening actions.",
+                "time": "2026-04-08 13:30",
+            },
+        ]
+    else:
+        for item in mitigation_queue:
+            item.setdefault("is_demo", False)
+
     return render_template(
         "war_room.html",
         stats=stats,
@@ -2494,6 +2608,8 @@ def war_room_dashboard():
         risk_trend_scores=risk_trend_scores,
         risk_trend_breaches=risk_trend_breaches,
         refresh_seconds=refresh_seconds,
+        is_simulated_data=is_simulated_data,
+        demo_mode_enabled=force_demo_mode,
         tr=tr,
     )
 

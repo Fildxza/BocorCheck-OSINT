@@ -22,9 +22,25 @@
                 <strong><i class="bi bi-arrow-repeat me-1"></i>Auto-refresh enabled</strong>
                 <span class="text-secondary ms-2">Next refresh in <span id="refreshCountdown">{{ refresh_seconds }}</span>s</span>
             </div>
-            <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, lang=current_lang) }}" class="btn btn-sm btn-outline-info">Refresh Now</a>
+            <div class="d-flex gap-2">
+                {% if demo_mode_enabled %}
+                <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, demo=1, lang=current_lang) }}" class="btn btn-sm btn-outline-info">Refresh Now</a>
+                <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, lang=current_lang) }}" class="btn btn-sm btn-outline-secondary">Switch to Live</a>
+                {% else %}
+                <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, lang=current_lang) }}" class="btn btn-sm btn-outline-info">Refresh Now</a>
+                <a href="{{ url_for('war_room_dashboard', refresh=refresh_seconds, demo=1, lang=current_lang) }}" class="btn btn-sm btn-outline-warning">Enable Demo Feed</a>
+                {% endif %}
+            </div>
         </div>
     </div>
+
+    {% if is_simulated_data %}
+    <div class="demo-banner mb-4">
+        <i class="bi bi-bezier2 me-2"></i>
+        <strong>Demo Data Mode:</strong>
+        Live records are not available yet, so simulated SOC data is shown for presentation.
+    </div>
+    {% endif %}
 
     <div class="row g-3 mb-4">
         <div class="col-md-4 col-xl-2">
@@ -92,7 +108,11 @@
                                 <span class="risk-pill {% if item.risk_level == 'HIGH' %}high{% elif item.risk_level == 'MEDIUM' %}medium{% else %}low{% endif %}">{{ item.risk_level }}</span>
                             </div>
                             <p class="mb-1">{{ item.top_action }}</p>
+                            {% if item.is_demo %}
+                            <button class="btn btn-sm btn-outline-secondary" type="button" disabled>Demo Action</button>
+                            {% else %}
                             <a href="{{ url_for('mitigation_planning', investigation_id=item.investigation_id, lang=current_lang) }}" class="btn btn-sm btn-outline-success">Open Mitigation</a>
+                            {% endif %}
                         </div>
                         {% endfor %}
                     {% else %}
@@ -293,6 +313,13 @@ document.addEventListener('DOMContentLoaded', function () {
     border: 1px solid rgba(88,166,255,.3);
     border-radius: 10px;
     padding: 12px 14px;
+}
+.demo-banner {
+    border: 1px solid rgba(210,153,34,.4);
+    background: rgba(210,153,34,.12);
+    color: #f2cc60;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 .kpi-card {
     background: linear-gradient(145deg, #161b22, #121720);
