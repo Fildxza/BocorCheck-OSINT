@@ -1,181 +1,46 @@
-import json
-import logging
-import requests
 import asyncio
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env file
-load_dotenv()
-
-# --- AI Integration: Ollama llama3 for Risk Analysis ---
-logger = logging.getLogger("bocorcheck.bot")
-logging.basicConfig(level=logging.INFO)
-
-def analyzeWithAI(osint_data: dict) -> dict | None:
-    """
-    FILDZA_AI_ACTIVE - Uses local Ollama (phi3) to generate dynamic mitigation plans.
-    Lightweight model optimized for low-RAM systems.
-    Returns dict with keys: risk_level, explanation, mitigation (immediate, short_term, long_term).
-    Falls back to None on error, triggering static mitigation fallback.
-    """
-    url = "http://localhost:11434/api/generate"
-    breaches = osint_data.get('breaches', [])
-    data_types = sorted({d for b in breaches for d in b.get("DataClasses", [])})
-    
-    # Build structured breach summary for AI analysis
-    breach_summary = ""
-    for i, breach in enumerate(breaches, 1):
-        breach_summary += f"\n  {i}. {breach.get('Name', 'Unknown')}: {', '.join(breach.get('DataClasses', []))} (Date: {breach.get('BreachDate', 'Unknown')})"
-    
-    # Determine primary risk factors
-    has_password = any('Password' in b.get('DataClasses', []) for b in breaches)
-    has_financial = any('FinancialData' in b.get('DataClasses', []) for b in breaches)
-    has_phone = any('Phone' in b.get('DataClasses', []) for b in breaches)
-    multiple_breaches = len(breaches) > 1
-    
-    # Optimized SHORT & DIRECT prompt for phi3 (lightweight model)
-    # Use examples to enforce specific, non-generic responses
-    prompt = f"""TASK: Analyze breach data and respond ONLY with JSON.
-NO generic responses. Each action must reference the SPECIFIC exposed data.
-
-BREACH DATA:
-Email: {osint_data.get('email')}
-Total Breaches: {len(breaches)}
-Exposed Data Types: {', '.join(data_types) if data_types else 'Unknown'}{breach_summary}
-
-RULES FOR ACTIONS (MUST FOLLOW):
-1. If "Password" exposed → include password reset, 2FA, monitor logins
-2. If "Email" exposed → include account recovery check, email security
-3. If "FinancialData" exposed → include credit monitoring, fraud alert, bank contact
-4. If "Phone" exposed → include SIM swap check, carrier contact
-5. If {len(breaches)}+ breaches → ESCALATE risk to HIGH, add urgent actions
-6. NEVER give generic advice like "use strong password" - be SPECIFIC to DATA TYPE
-
-EXAMPLE OUTPUT (with specific actions):
-{{"risk_level": "HIGH", "explanation": "Password and financial data breached. Immediate action required.", "mitigation": {{"immediate": ["Reset password on affected account immediately", "Enable 2FA/MFA on all financial accounts", "Contact your bank to report data breach"], "short_term": ["Monitor credit reports for fraud", "Place fraud alert with credit bureaus", "Update recovery email/phone in all accounts"], "long_term": ["Use unique password for each account", "Subscribe to credit monitoring", "Enable breach notifications"]}}}}
-
-NOW ANALYZE THIS SPECIFIC CASE AND RESPOND ONLY WITH JSON:
-{{"risk_level": "HIGH|MEDIUM|LOW", "explanation": "Specific analysis based on exposed data types", "mitigation": {{"immediate": ["specific action for {', '.join(data_types) if data_types else 'exposed data'} - be SPECIFIC"], "short_term": ["specific action"], "long_term": ["specific action"]}}}}""".strip()
-
-    payload = {
-        "model": "phi3",
-        "prompt": prompt,
-        "stream": False
-    }
-
-    logger.info(f"\n{'='*60}")
-    logger.info(f"FILDZA_AI_ACTIVE - Ollama Analysis Started")
-    logger.info(f"{'='*60}")
-    logger.info(f"Email: {osint_data.get('email')}")
-    logger.info(f"Breaches: {len(breaches)}")
-    logger.info(f"Data types: {', '.join(data_types) if data_types else 'None'}")
-    logger.info(f"Password exposed: {has_password} | Financial: {has_financial} | Phone: {has_phone} | Multiple: {multiple_breaches}")
-    logger.info(f"Model: phi3 | Timeout: 40s")
-    logger.info(f"\nBreach Details:")
-    for i, breach in enumerate(breaches, 1):
-        logger.info(f"  {i}. {breach.get('Name')}: {breach.get('DataClasses')}")
-    logger.debug(f"\nFull Prompt:\n{prompt}")
-
-    try:
-        logger.info("Connecting to Ollama (http://localhost:11434/api/generate)...")
-        response = requests.post(url, json=payload, timeout=40)
-        
-        if response.status_code != 200:
-            logger.error(f"❌ Ollama returned {response.status_code}: {response.text}")
-            logger.error("Fallback: Using static mitigation")
-            return None
-        
-        logger.info(f"✓ Ollama responded (status {response.status_code})")
-        data = response.json()
-        response_text = data.get("response", "")
-        logger.info(f"Response length: {len(response_text)} chars")
-        
-        # Extract JSON from response
-        start = response_text.find("{")
-        end = response_text.rfind("}")
-        
-        if start == -1 or end == -1:
-            logger.error(f"❌ No JSON found in response")
-            logger.error(f"Response: {response_text[:200]}")
-            return None
-        
-        json_str = response_text[start:end+1]
-        
-        try:
-            ai_result = json.loads(json_str)
-            logger.info(f"✓ JSON parsed successfully")
-            
-            # Validate structure
-            required_keys = {"risk_level", "explanation", "mitigation"}
-            if not required_keys.issubset(ai_result.keys()):
-                logger.error(f"❌ Missing keys: {required_keys - set(ai_result.keys())}")
-                return None
-            
-            mitigation = ai_result.get("mitigation", {})
-            if not all(k in mitigation for k in ["immediate", "short_term", "long_term"]):
-                logger.error(f"❌ Mitigation missing required keys")
-                return None
-            
-            logger.info(f"✓ FILDZA_AI_ACTIVE - Analysis Complete")
-            logger.info(f"\n{'='*60}")
-            logger.info(f"AI RESULT FOR: {osint_data.get('email')}")
-            logger.info(f"{'='*60}")
-            logger.info(f"Risk Level: {ai_result.get('risk_level')}")
-            logger.info(f"Explanation: {ai_result.get('explanation')}")
-            logger.info(f"Immediate Actions ({len(mitigation.get('immediate', []))}):")
-            for action in mitigation.get('immediate', []):
-                logger.info(f"  • {action}")
-            logger.info(f"Short-term Actions ({len(mitigation.get('short_term', []))}):")
-            for action in mitigation.get('short_term', []):
-                logger.info(f"  • {action}")
-            logger.info(f"Long-term Actions ({len(mitigation.get('long_term', []))}):")
-            for action in mitigation.get('long_term', []):
-                logger.info(f"  • {action}")
-            logger.info(f"{'='*60}\n")
-            
-            return ai_result
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON parse failed: {e}")
-            logger.error(f"JSON: {json_str[:200]}")
-            return None
-            
-    except requests.exceptions.ConnectionError:
-        logger.error(f"❌ Cannot connect to Ollama at http://localhost:11434")
-        logger.error(f"Run: ollama run phi3")
-        logger.error(f"Fallback: Using static mitigation")
-        return None
-    except requests.exceptions.Timeout:
-        logger.error(f"❌ Ollama timeout (40s) - model too slow or not loaded")
-        logger.error(f"Fallback: Using static mitigation")
-        return None
-    except Exception as e:
-        logger.error(f"❌ AI error: {e}")
-        return None
-
+import logging
 import os
 import re
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import requests
+from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+from ai_mitigation import OLLAMA_GENERATE_URL, OLLAMA_MODEL, generate_ai_mitigation
 from app import (
     API_KEY,
-    calculate_risk,
-    get_mitigation_tips,
     is_mock_mode_enabled,
     query_hibp_breaches,
     query_mock_breaches,
 )
 
+# Load environment variables from .env file
+load_dotenv()
+
+logger = logging.getLogger("bocorcheck.bot")
+logging.basicConfig(level=logging.INFO)
+
+
+def analyzeWithAI(osint_data: dict) -> Optional[dict]:
+    """
+    FILDZA_AI_ACTIVE - Backward-compat shim for tooling that still imports
+    analyzeWithAI from bot.py (e.g. debug_ai_mitigation.py). All actual AI
+    logic now lives in ai_mitigation.generate_ai_mitigation - this module no
+    longer has its own copy of the Ollama-calling / JSON-parsing code.
+    """
+    return generate_ai_mitigation(
+        email=osint_data.get("email", ""),
+        breaches=osint_data.get("breaches", []),
+    )
+
 # Put your BotFather token in environment variable TELEGRAM_BOT_TOKEN.
 # Keep placeholder in code to avoid exposing secret in thesis repository.
 BOT_TOKEN = os.getenv(
     "TELEGRAM_BOT_TOKEN",
-    "8784573630:AAGHKXGUIdZLzVgE0L1aZkM1uzz0_r5o9Bk",
+    "8784573630:AAGrnWSCglPhDd4WHv_w-eNRNDLop-rDTs4",
 )
 
 # Optional: restrict bot replies to a single Telegram chat/user ID.
@@ -198,53 +63,80 @@ def _is_chat_allowed(chat_id: int) -> bool:
     return str(chat_id) == ALLOWED_CHAT_ID
 
 
-def _build_no_breach_message(email: str) -> str:
-    tips = get_mitigation_tips(risk_level="Low", has_breach=False)
-    lines = [
-        f"No known breach found for {email}.",
-        "Status: Your data is safe.",
-        "",
-        "Mitigation Tips:",
-    ]
-    for idx, tip in enumerate(tips, start=1):
-        lines.append(f"{idx}. {tip}")
-    return "\n".join(lines)
-
-
-def _build_breach_message(email: str, breaches: List[Dict[str, Any]]) -> str:
-    """
-    Convert breach records into Telegram-friendly text summary.
-    """
-    formatted_lines = [f"Breach incidents found for {email}:"]
-    overall_risk = "Low"
-
-    for breach in breaches:
-        breach_name = breach.get("Name", "Unknown")
-        breach_date = breach.get("BreachDate", "Unknown")
-        data_classes = breach.get("DataClasses", [])
-        current_risk = calculate_risk(data_classes)
-
-        if current_risk == "High":
-            overall_risk = "High"
-        elif current_risk == "Medium" and overall_risk != "High":
-            overall_risk = "Medium"
-
-        formatted_lines.extend(
+def _format_breach_list(breaches: List[Dict[str, Any]]) -> List[str]:
+    """Render the per-breach company/date/data listing shared by both AI and fallback replies."""
+    lines: List[str] = []
+    for i, breach in enumerate(breaches, 1):
+        lines.extend(
             [
+                f"Breach #{i}:",
+                f"  Company: {breach.get('Name', 'Unknown')}",
+                f"  Date: {breach.get('BreachDate', 'Unknown')}",
+                f"  Data Exposed: {', '.join(breach.get('DataClasses', []))}",
                 "",
-                f"- Company: {breach_name}",
-                f"  Date: {breach_date}",
-                f"  Data: {', '.join(data_classes)}",
-                f"  Risk: {current_risk}",
+            ]
+        )
+    return lines
+
+
+def _format_mitigation_message(email: str, breaches: List[Dict[str, Any]], mitigation: Dict[str, Any]) -> str:
+    """
+    Render a Telegram message from a generate_ai_mitigation() result. Works
+    identically whether the result came from Ollama or the rule-based
+    fallback - both have the exact same shape, so there is only one formatter.
+    """
+    if not breaches:
+        lines = [f"No known breach found for {email}.", "Status: Your data is safe.", ""]
+    else:
+        risk_level = mitigation.get("risk_level", "UNKNOWN").upper()
+        risk_emoji = "🔴" if risk_level == "HIGH" else "🟡" if risk_level == "MEDIUM" else "🟢"
+
+        lines = [f"🔍 BREACH ANALYSIS FOR: {email}", "=" * 50, ""]
+        lines.extend(_format_breach_list(breaches))
+        lines.extend(
+            [
+                f"{risk_emoji} RISK ASSESSMENT: {risk_level}",
+                f"📋 Analysis: {mitigation.get('explanation', 'N/A')}",
+                "",
+                "🛡️ MITIGATION PLAN",
+                "=" * 50,
+                "",
             ]
         )
 
-    tips = get_mitigation_tips(risk_level=overall_risk, has_breach=True)
-    formatted_lines.extend(["", f"Overall Risk: {overall_risk}", "", "Mitigation Tips:"])
-    for idx, tip in enumerate(tips, start=1):
-        formatted_lines.append(f"{idx}. {tip}")
+    plan = mitigation.get("mitigation", {})
+    priority = mitigation.get("priority", {})
 
-    return "\n".join(formatted_lines)
+    section_titles = {
+        "immediate": "⚠️ IMMEDIATE ACTIONS (Do NOW)",
+        "short_term": "📅 SHORT-TERM ACTIONS (Days 1-7)",
+        "long_term": "🔄 LONG-TERM ACTIONS (Ongoing)",
+    }
+    for key, title in section_titles.items():
+        actions = plan.get(key, [])
+        if not actions:
+            continue
+        priority_label = priority.get(key)
+        lines.append(f"{title}" + (f" [Priority: {priority_label}]" if priority_label else "") + ":")
+        for idx, action in enumerate(actions, 1):
+            lines.append(f"  {idx}. {action}")
+        lines.append("")
+
+    best_practices = mitigation.get("best_practices", [])
+    if best_practices:
+        bp_priority = priority.get("best_practices")
+        lines.append("✅ BEST PRACTICES" + (f" [Priority: {bp_priority}]" if bp_priority else "") + ":")
+        for idx, practice in enumerate(best_practices, 1):
+            lines.append(f"  {idx}. {practice}")
+        lines.append("")
+
+    lines.append("=" * 50)
+    if mitigation.get("ai_powered"):
+        lines.append("Status: AI-Powered Recommendation (FILDZA_AI_ACTIVE)")
+    else:
+        lines.append("Status: Rule-Based Fallback (AI service unavailable)")
+
+    return "\n".join(lines)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -319,92 +211,26 @@ async def check(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await update.message.reply_text("Network error while contacting HIBP API.")
             return
 
-    # No breaches found
-    if not breaches:
-        logger.info(f"No breaches found for {email}")
-        await update.message.reply_text(_build_no_breach_message(email))
+    logger.info(f"Found {len(breaches)} breach(es) for {email}" if breaches else f"No breaches found for {email}")
+
+    # FILDZA_AI_ACTIVE - centralized engine call, offloaded to a worker thread so
+    # the bot's event loop stays responsive to other chats/commands while Ollama
+    # (which can take up to OLLAMA_TIMEOUT_SECONDS x retries) is in flight.
+    try:
+        mitigation = await asyncio.to_thread(generate_ai_mitigation, email, breaches)
+    except Exception as exc:
+        logger.error(f"Unexpected error generating mitigation for {email}: {exc}", exc_info=True)
+        await update.message.reply_text(
+            "Something went wrong generating your mitigation plan. Please try again in a moment."
+        )
         return
 
-    # Prepare data for AI analysis
-    logger.info(f"Found {len(breaches)} breach(es) for {email}")
-    osint_data = {
-        "email": email,
-        "breaches": breaches,
-    }
-
-    # Try AI-powered analysis
-    ai_result = None
-    try:
-        logger.info("FILDZA_AI_ACTIVE - Starting AI mitigation generation")
-        ai_result = analyzeWithAI(osint_data)
-    except Exception as e:
-        logger.error(f"FILDZA_AI_ACTIVE - Exception during AI analysis: {e}", exc_info=True)
-        ai_result = None
-
-    # Format response
-    if ai_result and "risk_level" in ai_result:
-        # Use AI-generated mitigation
-        logger.info("FILDZA_AI_ACTIVE - Using AI-generated mitigation plan")
-        
-        lines = [
-            f"🔍 BREACH ANALYSIS FOR: {email}",
-            f"{'='*50}",
-            "",
-        ]
-        
-        # List breaches
-        for i, breach in enumerate(breaches, 1):
-            lines.extend([
-                f"Breach #{i}:",
-                f"  Company: {breach.get('Name', 'Unknown')}",
-                f"  Date: {breach.get('BreachDate', 'Unknown')}",
-                f"  Data Exposed: {', '.join(breach.get('DataClasses', []))}",
-                "",
-            ])
-        
-        # AI Analysis
-        risk_level = ai_result.get('risk_level', 'UNKNOWN').upper()
-        risk_emoji = "🔴" if risk_level == "HIGH" else "🟡" if risk_level == "MEDIUM" else "🟢"
-        
-        lines.extend([
-            f"{risk_emoji} AI RISK ASSESSMENT: {risk_level}",
-            f"📋 Analysis: {ai_result.get('explanation', 'N/A')}",
-            "",
-            f"🛡️ AI-GENERATED MITIGATION PLAN",
-            f"{'='*50}",
-            "",
-        ])
-        
-        # Immediate Actions
-        immediate = ai_result.get('mitigation', {}).get('immediate', [])
-        lines.append("⚠️ IMMEDIATE ACTIONS (Do NOW):")
-        for idx, action in enumerate(immediate, 1):
-            lines.append(f"  {idx}. {action}")
-        lines.append("")
-        
-        # Short-term Actions
-        short_term = ai_result.get('mitigation', {}).get('short_term', [])
-        lines.append("📅 SHORT-TERM ACTIONS (Days 1-7):")
-        for idx, action in enumerate(short_term, 1):
-            lines.append(f"  {idx}. {action}")
-        lines.append("")
-        
-        # Long-term Actions
-        long_term = ai_result.get('mitigation', {}).get('long_term', [])
-        lines.append("🔄 LONG-TERM ACTIONS (Ongoing):")
-        for idx, action in enumerate(long_term, 1):
-            lines.append(f"  {idx}. {action}")
-        
-        lines.append(f"\n{'='*50}")
-        lines.append("Status: AI-Powered Recommendation (FILDZA_AI_ACTIVE)")
-        
-        message_text = "\n".join(lines)
-        logger.info(f"FILDZA_AI_ACTIVE - Sending AI-powered response to Telegram")
-        await update.message.reply_text(message_text)
-    else:
-        # Fallback to static mitigation
-        logger.info("FILDZA_AI_ACTIVE - Fallback: Using static mitigation plan")
-        await update.message.reply_text(_build_breach_message(email, breaches))
+    message_text = _format_mitigation_message(email, breaches, mitigation)
+    logger.info(
+        f"Sending {'AI-powered' if mitigation.get('ai_powered') else 'rule-based fallback'} "
+        f"response to Telegram for {email}"
+    )
+    await update.message.reply_text(message_text)
 
 
 def main() -> None:
@@ -420,8 +246,8 @@ def main() -> None:
     logger.info(f"\n{'='*60}")
     logger.info("🤖 FILDZA_AI_ACTIVE - BocorCheck Telegram Bot Starting")
     logger.info(f"{'='*60}")
-    logger.info(f"AI Model: phi3 (lightweight)")
-    logger.info(f"Ollama Endpoint: http://localhost:11434/api/generate")
+    logger.info(f"AI Model: {OLLAMA_MODEL} (lightweight)")
+    logger.info(f"Ollama Endpoint: {OLLAMA_GENERATE_URL}")
     logger.info(f"Chat ID Restriction: {ALLOWED_CHAT_ID if ALLOWED_CHAT_ID else 'NONE (Open)'}")
     logger.info(f"Mock Mode: {is_mock_mode_enabled()}")
     logger.info(f"\nFeatures:")
@@ -435,8 +261,20 @@ def main() -> None:
     application.add_handler(CommandHandler("check", check))
 
     logger.info("✓ Handlers registered. Starting polling mode...")
+
+    # python-telegram-bot's run_polling() calls the legacy asyncio.get_event_loop(),
+    # which Python 3.10+ no longer auto-creates in the main thread if none is
+    # running yet (and 3.12+/3.14 raise instead of silently creating one).
+    # Restoring an explicit loop here keeps run_polling() working as it expects.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     application.run_polling()
+
 
 
 if __name__ == "__main__":
     main()
+

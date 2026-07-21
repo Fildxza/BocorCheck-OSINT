@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}AI Proof - Ollama Live Check{% endblock %}
+
+{% block content %}
+<div class="container py-4 ai-proof-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1"><i class="fas fa-robot me-2"></i>AI Proof - Ollama Live Check</h1>
+            <p class="page-subtitle mb-0">Live local response from the phi3 model via Ollama.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('mitigation') }}" class="btn btn-outline-info btn-sm">
+                <i class="fas fa-shield-halved me-1"></i>Mitigation Dashboard
+            </a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm">
+                <i class="fas fa-house me-1"></i>Dashboard
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="proof-card h-100">
+                <div class="proof-label">Model</div>
+                <div class="proof-value">{{ model_name }}</div>
+                <div class="proof-meta">Endpoint: {{ ollama_url }}/api/generate</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="proof-card h-100">
+                <div class="proof-label">Generated At</div>
+                <div class="proof-value">{{ generated_at }}</div>
+                <div class="proof-meta">Local request executed from the Flask app.</div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="proof-card h-100">
+                <div class="proof-label">Status</div>
+                {% if ai_result.ai_powered %}
+                    <div class="status-pill success">AI-POWERED</div>
+                    <div class="proof-meta">Ollama returned a structured mitigation payload.</div>
+                {% else %}
+                    <div class="status-pill danger">RULE-BASED FALLBACK</div>
+                    <div class="proof-meta">{{ ai_error or 'AI service unavailable - showing the static fallback plan.' }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="proof-card h-100">
+                <div class="section-title">Sample Payload</div>
+                <pre class="code-block">{{ sample_data | tojson(indent=2) }}</pre>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="proof-card h-100">
+                <div class="section-title">AI Response</div>
+                <div class="mb-3">
+                    <div class="response-label">Risk Level</div>
+                    <div class="response-value">{{ ai_result.risk_level }}</div>
+                </div>
+                <div class="mb-3">
+                    <div class="response-label">Explanation</div>
+                    <p class="response-text mb-0">{{ ai_result.explanation }}</p>
+                </div>
+                <div class="mb-3">
+                    <div class="response-label">Mitigation</div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <div class="mini-card">
+                                <strong>Immediate</strong> <span class="priority-badge">{{ ai_result.priority.immediate }}</span>
+                                <ul>
+                                    {% for item in ai_result.mitigation.immediate %}
+                                    <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mini-card">
+                                <strong>Short Term</strong> <span class="priority-badge">{{ ai_result.priority.short_term }}</span>
+                                <ul>
+                                    {% for item in ai_result.mitigation.short_term %}
+                                    <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mini-card">
+                                <strong>Long Term</strong> <span class="priority-badge">{{ ai_result.priority.long_term }}</span>
+                                <ul>
+                                    {% for item in ai_result.mitigation.long_term %}
+                                    <li>{{ item }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% if ai_result.best_practices %}
+                <div class="mb-3">
+                    <div class="response-label">Best Practices <span class="priority-badge">{{ ai_result.priority.best_practices }}</span></div>
+                    <div class="mini-card">
+                        <ul>
+                            {% for item in ai_result.best_practices %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                {% endif %}
+                <div>
+                    <div class="response-label">Raw JSON</div>
+                    <pre class="code-block">{{ ai_result | tojson(indent=2) }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ai-proof-page { color: #def0ff; }
+.page-title { color: #f3fbff; font-weight: 800; }
+.page-subtitle { color: #9ab8d4; }
+.proof-card {
+    background: linear-gradient(145deg, #101c2e 0%, #0a1422 100%);
+    border: 1px solid rgba(74, 163, 255, 0.24);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 10px 26px rgba(0, 12, 24, 0.38);
+}
+.proof-label, .section-title, .response-label { color: #93c9ff; font-weight: 700; }
+.proof-value { color: #f7fcff; font-size: 1.25rem; font-weight: 800; margin-top: 4px; }
+.proof-meta, .response-text { color: #b7d2ea; }
+.response-value {
+    color: #f7fcff;
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+.status-pill {
+    display: inline-flex;
+    width: fit-content;
+    padding: 0.25rem 0.7rem;
+    border-radius: 999px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    margin-top: 6px;
+}
+.status-pill.success { color: #99ffbf; background: rgba(38, 222, 129, 0.14); border: 1px solid rgba(38, 222, 129, 0.35); }
+.status-pill.danger { color: #ffb0bc; background: rgba(255, 77, 109, 0.14); border: 1px solid rgba(255, 77, 109, 0.35); }
+.code-block {
+    margin: 0;
+    padding: 14px;
+    border-radius: 12px;
+    background: #07111d;
+    color: #d7ebff;
+    border: 1px solid rgba(121, 196, 255, 0.18);
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.mini-card {
+    height: 100%;
+    background: rgba(10, 20, 34, 0.8);
+    border: 1px solid rgba(121, 196, 255, 0.18);
+    border-radius: 12px;
+    padding: 12px;
+}
+.mini-card ul { margin: 8px 0 0 18px; color: #c4dbf0; }
+.priority-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    color: #93c9ff;
+    background: rgba(74, 163, 255, 0.14);
+    border: 1px solid rgba(74, 163, 255, 0.35);
+    vertical-align: middle;
+}
+.alert-box {
+    border-radius: 12px;
+    border: 1px solid rgba(255, 77, 109, 0.35);
+    background: rgba(255, 77, 109, 0.08);
+    padding: 14px;
+    color: #ffd7df;
+}
+</style>
+{% endblock %}

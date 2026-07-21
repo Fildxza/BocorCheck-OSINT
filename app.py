@@ -86,6 +86,7 @@ REQUEST_TIMEOUT_SECONDS = 15
 PHONE_DEFAULT_REGION = os.getenv("PHONE_DEFAULT_REGION", "MY")
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+TELEGRAM_API_FALLBACK_IP = os.getenv("TELEGRAM_API_FALLBACK_IP", "149.154.167.220")
 
 SUPPORTED_LANGUAGES = ("en", "ms")
 DEFAULT_LANGUAGE = "en"
@@ -286,10 +287,10 @@ def inject_i18n_context() -> Dict[str, Any]:
         "current_user": getattr(g, "user", None),
     }
 
-# Temporary demo fallback for Telegram integration.
-# Revoke and replace after presentation.
-DEMO_TELEGRAM_TOKEN = "8784573630:AAGHKXGUIdZLzVgE0L1aZkM1uzz0_r5o9Bk"
-DEMO_TELEGRAM_CHAT_ID = "5917103363"
+# Telegram fallback values match the original BotFather setup used by this project.
+# The app will prefer TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from .env when present.
+ORIGINAL_TELEGRAM_TOKEN = "8784573630:AAGrnWSCglPhDd4WHv_w-eNRNDLop-rDTs4"
+ORIGINAL_TELEGRAM_CHAT_ID = "5917103363"
 
 MYSQL_DEFAULTS = {
     "host": "127.0.0.1",
@@ -522,9 +523,12 @@ def get_telegram_config() -> Dict[str, str]:
     """
     Read Telegram settings at runtime so updated env vars are picked up immediately.
     """
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    chat_id = (os.getenv("TELEGRAM_CHAT_ID") or "").strip()
+
     return {
-        "token": os.getenv("TELEGRAM_BOT_TOKEN", DEMO_TELEGRAM_TOKEN).strip(),
-        "chat_id": os.getenv("TELEGRAM_CHAT_ID", DEMO_TELEGRAM_CHAT_ID).strip(),
+        "token": token or ORIGINAL_TELEGRAM_TOKEN,
+        "chat_id": chat_id or ORIGINAL_TELEGRAM_CHAT_ID,
     }
 
 
@@ -561,6 +565,31 @@ def analyze_bank_account(account_input: str) -> Dict[str, Any]:
             "No real banking system lookup is performed."
         ),
     }
+
+
+def _post_telegram_message(token: str, payload: Dict[str, Any]) -> requests.Response:
+    """
+    Send a Telegram message with a DNS-based primary endpoint and an IP fallback.
+    The fallback preserves the existing workflow when api.telegram.org cannot be resolved.
+    """
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    try:
+        response = requests.post(url, data=payload, timeout=REQUEST_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        return response
+    except requests.exceptions.ConnectionError:
+        fallback_url = f"https://{TELEGRAM_API_FALLBACK_IP}/bot{token}/sendMessage"
+        fallback_headers = {"Host": "api.telegram.org"}
+        response = requests.post(
+            fallback_url,
+            data=payload,
+            headers=fallback_headers,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            verify=False,
+        )
+        response.raise_for_status()
+        return response
 
 
 def send_telegram_test_alert(
@@ -602,18 +631,26 @@ def send_telegram_test_alert(
     }
 
     try:
-        response = requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
+        response = _post_telegram_message(token, payload)
         result = response.json()
         if not result.get("ok"):
-            return {"ok": False, "message": "Telegram API rejected the message."}
+            return {
+                "ok": False,
+                "message": (
+                    f"Telegram API rejected the message: {result.get('description', 'unknown error')}"
+                ),
+            }
         return {"ok": True, "message": "Telegram test alert sent successfully."}
-    except requests.RequestException:
-        return {"ok": False, "message": "Failed to send Telegram alert. Check network/token."}
+    except requests.exceptions.ConnectionError as exc:
+        return {
+            "ok": False,
+            "message": (
+                "Failed to reach Telegram API. Check DNS/network access to api.telegram.org: "
+                f"{exc}"
+            ),
+        }
+    except requests.RequestException as exc:
+        return {"ok": False, "message": f"Failed to send Telegram alert: {exc}"}
 
 
 def send_telegram_alert(
@@ -658,18 +695,26 @@ def send_telegram_alert(
     }
 
     try:
-        response = requests.post(
-            f"https://api.telegram.org/bot{token}/sendMessage",
-            data=payload,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
+        response = _post_telegram_message(token, payload)
         result = response.json()
         if not result.get("ok"):
-            return {"ok": False, "message": "Telegram API rejected the auto-alert."}
+            return {
+                "ok": False,
+                "message": (
+                    f"Telegram API rejected the auto-alert: {result.get('description', 'unknown error')}"
+                ),
+            }
         return {"ok": True, "message": "Auto Telegram alert sent successfully."}
-    except requests.RequestException:
-        return {"ok": False, "message": "Failed to send auto Telegram alert."}
+    except requests.exceptions.ConnectionError as exc:
+        return {
+            "ok": False,
+            "message": (
+                "Failed to reach Telegram API. Check DNS/network access to api.telegram.org: "
+                f"{exc}"
+            ),
+        }
+    except requests.RequestException as exc:
+        return {"ok": False, "message": f"Failed to send auto Telegram alert: {exc}"}
 
 
 def query_mock_breaches(email: str) -> List[Dict[str, Any]]:
@@ -2756,6 +2801,35 @@ def mitigation_planning(investigation_id: int):
     )
 
     return render_template("mitigation_response.html", **context)
+
+
+@app.route("/ai-proof", methods=["GET"])
+def ai_proof():
+    """
+    Public proof page for local Ollama validation.
+    Uses a fixed mock breach payload so the AI response can be captured in screenshots/logs.
+    """
+    demo_email = request.args.get("email", "amin.demo@gmail.com").strip().lower()
+    demo_profile = MOCK_BREACHES.get(demo_email, MOCK_BREACHES["amin.demo@gmail.com"])
+    sample_data = {
+        "email": demo_email,
+        "breaches": demo_profile.get("sources", []),
+    }
+
+    from ai_mitigation import OLLAMA_BASE_URL, OLLAMA_MODEL, generate_ai_mitigation
+
+    ai_result = generate_ai_mitigation(email=demo_email, breaches=sample_data["breaches"])
+    ai_error = None if ai_result.get("ai_powered") else "AI service unavailable - showing rule-based fallback."
+
+    return render_template(
+        "ai_proof.html",
+        sample_data=sample_data,
+        ai_result=ai_result,
+        ai_error=ai_error,
+        model_name=OLLAMA_MODEL,
+        ollama_url=OLLAMA_BASE_URL,
+        generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+    )
 
 
 # ============================================================================

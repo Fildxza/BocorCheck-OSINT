@@ -50,6 +50,43 @@ python app.py
 
 ---
 
+## 🤖 Local Ollama AI Demo
+
+If you want to prove the local AI is running for your FYP demo:
+
+### Start Ollama + App Automatically
+```powershell
+.\start_local_ai_demo.ps1
+```
+
+This script will:
+- Start Ollama if it is not already running
+- Launch the Flask app
+- Keep using the local `phi3` model configured in `bot.py`
+
+### Open the AI Proof Page
+Use this route after the app is running:
+
+```text
+http://127.0.0.1:5000/ai-proof
+```
+
+The page shows:
+- Sample breach payload
+- Live response from Ollama
+- Raw JSON mitigation output
+
+### Collect Evidence for Report
+```powershell
+.\collect_ai_evidence.ps1
+```
+
+This saves:
+- A log file from `test_ai_integration.py`
+- An HTML snapshot of the AI proof route
+
+---
+
 ## 🔑 Test Credentials (for quick demo)
 
 If you want to test with multiple accounts without creating them:
