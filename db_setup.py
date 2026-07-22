@@ -215,6 +215,26 @@ def ddl_statements() -> List[str]:
             INDEX idx_resource_type (resource_type)
         ) ENGINE=InnoDB
         """,
+        """
+        CREATE TABLE IF NOT EXISTS ai_mitigation_reports (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            investigation_id INT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            report_json LONGTEXT NULL,
+            ai_powered TINYINT(1) NULL,
+            latency_ms INT NULL,
+            error_message TEXT NULL,
+            requested_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            completed_at DATETIME NULL,
+            CONSTRAINT fk_ai_report_investigation
+                FOREIGN KEY (investigation_id)
+                REFERENCES investigation_logs(id)
+                ON DELETE CASCADE,
+            INDEX idx_ai_report_investigation (investigation_id),
+            INDEX idx_ai_report_status (status),
+            INDEX idx_ai_report_requested_at (requested_at)
+        ) ENGINE=InnoDB
+        """,
     ]
 
 

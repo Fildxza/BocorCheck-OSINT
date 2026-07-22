@@ -55,6 +55,8 @@ from data_analyzer import (
     get_hash_algorithm_reference,
 )
 
+import ai_reports
+
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "change-this-for-production")
@@ -978,6 +980,48 @@ def calculate_risk_score(breach_data: Dict[str, Any]) -> Dict[str, Any]:
     return {"risk_score": score, "risk_level": level}
 
 
+def estimate_risk_reduction(risk_score: int, breaches: List[Dict[str, Any]], phone_exposed: bool = False) -> Dict[str, Any]:
+    """
+    Estimate the risk score after the recommended mitigation actions are followed.
+
+    Reuses the exact weight constants from calculate_risk_score(): the breach-count
+    (+20/breach) and recency (+10) factors are historical facts and cannot be reduced
+    by user action, so they are never subtracted here. The password (+15) and phone
+    (+10) exposure factors ARE neutralized once the corresponding mitigation action
+    is followed, so they make up the reducible portion of the score.
+    """
+    factors: List[Dict[str, Any]] = []
+    reduction = 0
+
+    if _contains_password_exposure(breaches):
+        reduction += 15
+        factors.append(
+            {
+                "factor": "Password exposure",
+                "points": 15,
+                "neutralized_by": "Reset the password and enable two-factor authentication (2FA)",
+            }
+        )
+
+    if phone_exposed or _contains_phone_exposure(breaches):
+        reduction += 10
+        factors.append(
+            {
+                "factor": "Phone number exposure",
+                "points": 10,
+                "neutralized_by": "Monitor for SIM-swap attempts and update recovery phone settings",
+            }
+        )
+
+    estimated_score = max(risk_score - reduction, 0)
+    return {
+        "current_score": risk_score,
+        "estimated_score": estimated_score,
+        "reduction_points": reduction,
+        "factors": factors,
+    }
+
+
 def generate_risk_explanation(
     risk_score: int,
     risk_level: str,
@@ -1852,6 +1896,7 @@ def index() -> str:
                     risk_level=risk_level,
                     user_id=session.get('user_id'),
                 )
+                context["investigation_id"] = investigation_id
 
                 sensitive_data = has_sensitive_data_exposure(breaches)
                 explanation = generate_risk_explanation(
@@ -1984,6 +2029,7 @@ def index() -> str:
                 risk_level=risk_level,
                 user_id=session.get('user_id'),
             )
+            context["investigation_id"] = investigation_id
 
             sensitive_data = has_sensitive_data_exposure(breaches)
             explanation = generate_risk_explanation(
@@ -2833,6 +2879,151 @@ def ai_proof():
 
 
 # ============================================================================
+# FEATURE: AI Cybersecurity Consultant Reports (async generation, history, metrics)
+# ============================================================================
+
+def _load_investigation_for_ai_report(investigation_id: int, user_id: Optional[int], is_admin: bool) -> Optional[Dict[str, Any]]:
+    """
+    Reconstruct the email/breaches/risk data for an investigation so an AI
+    report can be (re)generated for it. Returns None if not found or if the
+    requesting user doesn't own it (unless admin).
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(dictionary=True) as cursor:
+            if is_admin:
+                cursor.execute("SELECT * FROM investigation_logs WHERE id = %s", (investigation_id,))
+            else:
+                cursor.execute(
+                    "SELECT * FROM investigation_logs WHERE id = %s AND user_id = %s",
+                    (investigation_id, user_id),
+                )
+            investigation = cursor.fetchone()
+            if not investigation:
+                return None
+
+            cursor.execute(
+                "SELECT breach_name, breach_date, data_exposed FROM breach_results WHERE investigation_id = %s",
+                (investigation_id,),
+            )
+            breach_rows = cursor.fetchall()
+
+    breaches = [
+        {
+            "Name": row["breach_name"],
+            "BreachDate": str(row["breach_date"]) if row["breach_date"] else "Unknown",
+            "DataClasses": [d.strip() for d in (row["data_exposed"] or "").split(",") if d.strip()],
+        }
+        for row in breach_rows
+    ]
+
+    return {
+        "email": investigation.get("email") or "",
+        "phone_number": investigation.get("phone_number"),
+        "breaches": breaches,
+        "risk_score": investigation.get("risk_score"),
+        "risk_level": investigation.get("risk_level"),
+    }
+
+
+@app.route("/ai-mitigation/<int:investigation_id>/generate", methods=["POST"])
+@login_required
+def ai_mitigation_generate(investigation_id: int):
+    """
+    Kick off an AI cybersecurity consultant report for this investigation on a
+    background thread and return immediately. The browser polls
+    /ai-mitigation/<investigation_id>/status until it completes, instead of
+    blocking the request for the AI's full latency.
+    """
+    is_admin = bool(session.get("is_admin"))
+    user_id = session.get("user_id")
+
+    data = _load_investigation_for_ai_report(investigation_id, user_id, is_admin)
+    if data is None:
+        return {"error": "Investigation not found"}, 404
+
+    if not data["breaches"]:
+        return {"error": "No breach data to analyze for this investigation"}, 400
+
+    risk_reduction = estimate_risk_reduction(
+        risk_score=data["risk_score"] or 0,
+        breaches=data["breaches"],
+        phone_exposed=bool(data["phone_number"]),
+    )
+
+    report_id = ai_reports.create_report_job(investigation_id)
+    ai_reports.start_report_job_async(
+        report_id,
+        email=data["email"],
+        breaches=data["breaches"],
+        phone_number=data["phone_number"],
+        phone_exposed=bool(data["phone_number"]),
+        risk_score=data["risk_score"],
+        risk_level=data["risk_level"],
+        risk_reduction=risk_reduction,
+    )
+    return {"report_id": report_id, "status": "pending"}
+
+
+@app.route("/ai-mitigation/status/<int:report_id>", methods=["GET"])
+@login_required
+def ai_mitigation_status(report_id: int):
+    """Lightweight polling endpoint - JSON only, no report body until complete."""
+    status = ai_reports.get_report_status(report_id)
+    if status is None:
+        return {"error": "Report not found"}, 404
+    return {
+        "report_id": status["id"],
+        "status": status["status"],
+        "ai_powered": bool(status["ai_powered"]) if status["ai_powered"] is not None else None,
+        "latency_ms": status["latency_ms"],
+        "error_message": status["error_message"],
+    }
+
+
+@app.route("/ai-mitigation/report/<int:report_id>", methods=["GET"])
+@login_required
+def ai_mitigation_report(report_id: int):
+    """Full consultant-report view: risk badge, evidence map, report sections, risk reduction score."""
+    row = ai_reports.get_report(report_id)
+    if row is None:
+        return "Not found", 404
+
+    is_admin = bool(session.get("is_admin"))
+    if not is_admin:
+        # Fail closed: a report with no investigation_id has no owner to verify against,
+        # so a non-admin user gets denied rather than silently allowed.
+        if not row.get("investigation_id"):
+            return "Not found", 404
+        owner_check = _load_investigation_for_ai_report(row["investigation_id"], session.get("user_id"), False)
+        if owner_check is None:
+            return "Not found", 404
+
+    return render_template(
+        "ai_mitigation_report.html",
+        row=row,
+        report=row.get("report"),
+        tr=tr,
+    )
+
+
+@app.route("/ai-mitigation/history", methods=["GET"])
+@login_required
+def ai_mitigation_history():
+    """List past AI reports for the logged-in user (admins see all), mirroring history()'s auth pattern."""
+    is_admin = bool(session.get("is_admin"))
+    reports = ai_reports.list_reports_for_user(session.get("user_id"), is_admin=is_admin)
+    return render_template("ai_mitigation_history.html", reports=reports, is_admin=is_admin, tr=tr)
+
+
+@app.route("/ai-mitigation/metrics", methods=["GET"])
+@login_required
+def ai_mitigation_metrics():
+    """AI usage metrics dashboard: latency, success rate, fallback rate, usage trend."""
+    metrics = ai_reports.get_metrics_summary()
+    return render_template("ai_metrics_dashboard.html", metrics=metrics, tr=tr)
+
+
+# ============================================================================
 # FEATURE 2: Dark Web Monitoring Routes
 # ============================================================================
 
@@ -3262,4 +3453,6 @@ if __name__ == "__main__":
         # App still runs for demo even if DB is unavailable, but logging is disabled.
         pass
     # Disable reloader to avoid duplicate process behavior in Windows/VS Code debugging.
-    app.run(debug=True, use_reloader=False)
+    # threaded=True lets the dev server serve /ai-mitigation/status polling requests
+    # concurrently while a background thread is still generating an AI report.
+    app.run(debug=True, use_reloader=False, threaded=True)

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}AI Report History{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1"><i class="fas fa-clock-rotate-left me-2"></i>AI Report History</h1>
+            <p class="page-subtitle mb-0">{% if is_admin %}All AI cybersecurity reports generated across all users.{% else %}Your past AI cybersecurity consultant reports.{% endif %}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('ai_mitigation_metrics') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-chart-line me-1"></i>Metrics Dashboard</a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm"><i class="fas fa-house me-1"></i>Dashboard</a>
+        </div>
+    </div>
+
+    {% if not reports %}
+    <div class="proof-card">
+        <p class="response-text mb-0">No AI reports generated yet. Run a breach check and click "Generate AI Cybersecurity Report" to create your first one.</p>
+    </div>
+    {% else %}
+    <div class="proof-card p-0">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Email</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                    <th>Source</th>
+                    <th>Latency</th>
+                    <th>Requested</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reports %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td>{{ r.email or '-' }}</td>
+                    <td><span class="response-value risk-{{ (r.risk_level or 'medium')|lower }}" style="font-size: 1rem;">{{ r.risk_level or '-' }}</span></td>
+                    <td>
+                        {% if r.status == 'complete' %}<span class="status-pill success">Complete</span>
+                        {% elif r.status == 'failed' %}<span class="status-pill danger">Failed</span>
+                        {% else %}<span class="status-pill pending">{{ r.status }}</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if r.ai_powered == 1 %}<span class="badge" style="background: rgba(63,185,80,0.14); color:#3fb950;">AI</span>
+                        {% elif r.ai_powered == 0 %}<span class="badge" style="background: rgba(210,153,34,0.14); color:#d29922;">Fallback</span>
+                        {% else %}<span class="proof-meta">-</span>{% endif %}
+                    </td>
+                    <td>{% if r.latency_ms %}{{ (r.latency_ms / 1000) | round(1) }}s{% else %}-{% endif %}</td>
+                    <td class="proof-meta">{{ r.requested_at }}</td>
+                    <td>
+                        {% if r.status == 'complete' %}
+                        <a href="{{ url_for('ai_mitigation_report', report_id=r.id) }}" class="btn btn-sm btn-outline-info">View</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.page-title { color: #f0f6fc; font-weight: 800; }
+.page-subtitle { color: #8b949e; }
+.proof-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; }
+.proof-meta, .response-text { color: #8b949e; }
+.response-value { font-weight: 800; }
+.response-value.risk-high { color: #f85149; }
+.response-value.risk-medium { color: #d29922; }
+.response-value.risk-low { color: #3fb950; }
+.status-pill { display: inline-flex; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 700; font-size: 0.8rem; }
+.status-pill.success { color: #3fb950; background: rgba(63, 185, 80, 0.14); }
+.status-pill.danger { color: #f85149; background: rgba(248, 81, 73, 0.14); }
+.status-pill.pending { color: #d29922; background: rgba(210, 153, 34, 0.14); }
+</style>
+{% endblock %}

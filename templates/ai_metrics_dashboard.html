@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}AI Metrics Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1"><i class="fas fa-chart-line me-2"></i>AI Metrics Dashboard</h1>
+            <p class="page-subtitle mb-0">Usage and reliability statistics for the AI cybersecurity consultant engine (web-originated reports).</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('ai_mitigation_history') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clock-rotate-left me-1"></i>Report History</a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm"><i class="fas fa-house me-1"></i>Dashboard</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="proof-card h-100">
+                <div class="proof-label">Total Reports</div>
+                <div class="stat-value">{{ metrics.total_reports }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="proof-card h-100">
+                <div class="proof-label">Success Rate</div>
+                <div class="stat-value">{{ metrics.success_rate_pct }}%</div>
+                <div class="proof-meta">{{ metrics.completed_reports }} completed / {{ metrics.failed_reports }} failed</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="proof-card h-100">
+                <div class="proof-label">AI-Powered vs Fallback</div>
+                <div class="stat-value">{{ metrics.ai_powered_rate_pct }}%</div>
+                <div class="proof-meta">{{ metrics.ai_powered_reports }} AI-powered / {{ metrics.fallback_reports }} fallback</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="proof-card h-100">
+                <div class="proof-label">Avg Latency</div>
+                <div class="stat-value">{{ metrics.avg_latency_seconds }}s</div>
+                <div class="proof-meta">{{ metrics.avg_latency_ms }} ms</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="proof-card mb-4">
+        <div class="section-title mb-2">Reliability Breakdown</div>
+        <div class="bar-track">
+            <div class="bar-fill bar-success" style="width: {{ metrics.ai_powered_rate_pct }}%;"></div>
+            <div class="bar-fill bar-warning" style="width: {{ metrics.fallback_rate_pct }}%;"></div>
+        </div>
+        <div class="d-flex gap-3 mt-2 flex-wrap proof-meta">
+            <span><span class="dot dot-success"></span>AI-Powered {{ metrics.ai_powered_rate_pct }}%</span>
+            <span><span class="dot dot-warning"></span>Rule-Based Fallback {{ metrics.fallback_rate_pct }}%</span>
+        </div>
+    </div>
+
+    <div class="proof-card">
+        <div class="section-title mb-2">Usage Trend (last 14 days)</div>
+        {% if not metrics.trend %}
+        <p class="response-text mb-0">No reports generated yet in this period.</p>
+        {% else %}
+        <table class="table table-dark table-hover mb-0">
+            <thead><tr><th>Day</th><th>Reports</th><th>AI-Powered</th></tr></thead>
+            <tbody>
+                {% for row in metrics.trend %}
+                <tr>
+                    <td>{{ row.day }}</td>
+                    <td>{{ row.report_count }}</td>
+                    <td>{{ row.ai_powered_count }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.page-title { color: #f0f6fc; font-weight: 800; }
+.page-subtitle { color: #8b949e; }
+.proof-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 16px; }
+.proof-label, .section-title { color: #58a6ff; font-weight: 700; }
+.proof-meta, .response-text { color: #8b949e; }
+.stat-value { color: #f0f6fc; font-size: 1.8rem; font-weight: 800; margin-top: 4px; }
+.bar-track { display: flex; height: 18px; border-radius: 999px; overflow: hidden; background: #0d1117; border: 1px solid #30363d; }
+.bar-fill { height: 100%; }
+.bar-success { background: #3fb950; }
+.bar-warning { background: #d29922; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+.dot-success { background: #3fb950; }
+.dot-warning { background: #d29922; }
+</style>
+{% endblock %}

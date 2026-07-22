@@ -637,6 +637,71 @@
             </div>
             {% endif %}
 
+            {% if investigation_id and has_breach %}
+            <!-- AI CYBERSECURITY CONSULTANT REPORT -->
+            <div class="section-card" style="border-left: 4px solid #58a6ff;" id="ai-report-section" data-investigation-id="{{ investigation_id }}">
+                <h3 class="h5 mb-3" style="color: #58a6ff;">
+                    <i class="fas fa-user-shield" style="margin-right: 0.5rem;"></i>AI Cybersecurity Consultant Report
+                </h3>
+                <p style="color: #8b949e;">Generate a full consultant-style report: executive summary, threat analysis, attack scenario, explainable evidence mapping, and a risk reduction score - powered by a local AI model.</p>
+
+                <div id="ai-report-trigger">
+                    <button type="button" class="btn btn-outline-info" id="ai-report-generate-btn" onclick="startAiReport({{ investigation_id }})">
+                        <i class="fas fa-robot" style="margin-right: 0.5rem;"></i>Generate AI Cybersecurity Report
+                    </button>
+                </div>
+                <div id="ai-report-progress" style="display: none;">
+                    <div class="d-flex align-items-center" style="color: #8b949e;">
+                        <div class="spinner-border spinner-border-sm text-info" role="status" style="margin-right: 0.75rem;"></div>
+                        <span id="ai-report-progress-text">Generating report... this can take up to a couple of minutes on a local model.</span>
+                    </div>
+                </div>
+                <div id="ai-report-error" class="alert alert-danger mt-3" style="display: none;"></div>
+            </div>
+
+            <script>
+            function startAiReport(investigationId) {
+                document.getElementById('ai-report-trigger').style.display = 'none';
+                document.getElementById('ai-report-progress').style.display = 'block';
+                document.getElementById('ai-report-error').style.display = 'none';
+
+                fetch(`/ai-mitigation/${investigationId}/generate`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.error) { throw new Error(data.error); }
+                        pollAiReport(data.report_id);
+                    })
+                    .catch(err => showAiReportError(err.message));
+            }
+
+            function pollAiReport(reportId) {
+                const poll = setInterval(() => {
+                    fetch(`/ai-mitigation/status/${reportId}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.status === 'complete') {
+                                clearInterval(poll);
+                                window.location.href = `/ai-mitigation/report/${reportId}`;
+                            } else if (data.status === 'failed') {
+                                clearInterval(poll);
+                                showAiReportError(data.error_message || 'AI report generation failed.');
+                            }
+                            // pending/running: keep polling
+                        })
+                        .catch(err => { clearInterval(poll); showAiReportError(err.message); });
+                }, 3000);
+            }
+
+            function showAiReportError(message) {
+                document.getElementById('ai-report-progress').style.display = 'none';
+                document.getElementById('ai-report-trigger').style.display = 'block';
+                const errorBox = document.getElementById('ai-report-error');
+                errorBox.textContent = message;
+                errorBox.style.display = 'block';
+            }
+            </script>
+            {% endif %}
+
             <!-- MITIGATION PLAN & RESPONSE SECTION -->
             <div class="section-card" style="border-left: 4px solid #34d399;">
                 <h3 class="h5 mb-3" style="color: #34d399;">

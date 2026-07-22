@@ -66,6 +66,42 @@
                     <div class="response-label">Explanation</div>
                     <p class="response-text mb-0">{{ ai_result.explanation }}</p>
                 </div>
+                {% if ai_result.executive_summary %}
+                <div class="mb-3">
+                    <div class="response-label">Executive Summary</div>
+                    <p class="response-text mb-0">{{ ai_result.executive_summary }}</p>
+                </div>
+                {% endif %}
+                {% if ai_result.threat_analysis %}
+                <div class="mb-3">
+                    <div class="response-label">Threat Analysis</div>
+                    <p class="response-text mb-0">{{ ai_result.threat_analysis }}</p>
+                </div>
+                {% endif %}
+                {% if ai_result.attack_scenario %}
+                <div class="mb-3">
+                    <div class="response-label">Attack Scenario</div>
+                    <p class="response-text mb-0">{{ ai_result.attack_scenario }}</p>
+                </div>
+                {% endif %}
+                {% if ai_result.evidence_map %}
+                <div class="mb-3">
+                    <div class="response-label">Evidence Map (Explainable AI)</div>
+                    {% for item in ai_result.evidence_map %}
+                    <div class="mini-card mb-2">
+                        <strong>{{ item.exposure }}</strong>
+                        <div class="response-text">{{ item.risk }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if ai_result.risk_reduction %}
+                <div class="mb-3">
+                    <div class="response-label">Risk Reduction Score</div>
+                    <div class="response-value">{{ ai_result.risk_reduction.current_score }} &rarr; {{ ai_result.risk_reduction.estimated_score }}</div>
+                    <p class="response-text mb-0">{{ ai_result.risk_reduction.narrative }}</p>
+                </div>
+                {% endif %}
                 <div class="mb-3">
                     <div class="response-label">Mitigation</div>
                     <div class="row g-2">
@@ -111,6 +147,18 @@
                             {% endfor %}
                         </ul>
                     </div>
+                </div>
+                {% endif %}
+                {% if ai_result.business_impact %}
+                <div class="mb-3">
+                    <div class="response-label">Business / Personal Impact</div>
+                    <p class="response-text mb-0">{{ ai_result.business_impact }}</p>
+                </div>
+                {% endif %}
+                {% if ai_result.overall_assessment %}
+                <div class="mb-3">
+                    <div class="response-label">Overall Assessment</div>
+                    <p class="response-text mb-0">{{ ai_result.overall_assessment }}</p>
                 </div>
                 {% endif %}
                 <div>

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}AI Cybersecurity Consultant Report{% endblock %}
+
+{% block content %}
+<div class="container py-4 ai-report-page">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="page-title mb-1"><i class="fas fa-user-shield me-2"></i>AI Cybersecurity Consultant Report</h1>
+            <p class="page-subtitle mb-0">Report #{{ row.id }}{% if row.investigation_id %} &middot; Investigation #{{ row.investigation_id }}{% endif %}</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('ai_mitigation_history') }}" class="btn btn-outline-info btn-sm"><i class="fas fa-clock-rotate-left me-1"></i>Report History</a>
+            <a href="{{ url_for('index') }}" class="btn btn-primary btn-sm"><i class="fas fa-house me-1"></i>Dashboard</a>
+        </div>
+    </div>
+
+    {% if not report %}
+    <div class="alert-box">
+        <strong>Report not available.</strong>
+        <div>Status: {{ row.status }}{% if row.error_message %} - {{ row.error_message }}{% endif %}</div>
+    </div>
+    {% else %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-3">
+            <div class="proof-card h-100">
+                <div class="proof-label">Risk Level</div>
+                <div class="response-value risk-{{ report.risk_level|lower }}">{{ report.risk_level }}</div>
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="proof-card h-100">
+                <div class="proof-label">Status</div>
+                {% if report.ai_powered %}
+                    <div class="status-pill success">AI-POWERED</div>
+                {% else %}
+                    <div class="status-pill danger">RULE-BASED FALLBACK</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="proof-card h-100">
+                <div class="proof-label">Generated</div>
+                <div class="proof-meta">{{ report.generated_at }}</div>
+                {% if row.latency_ms %}<div class="proof-meta">Latency: {{ (row.latency_ms / 1000) | round(1) }}s</div>{% endif %}
+            </div>
+        </div>
+        <div class="col-lg-3">
+            <div class="proof-card h-100">
+                <div class="proof-label">Risk Reduction</div>
+                {% if report.risk_reduction %}
+                <div class="response-value">{{ report.risk_reduction.current_score }} &rarr; {{ report.risk_reduction.estimated_score }}</div>
+                <div class="proof-meta">-{{ report.risk_reduction.reduction_points }} pts if followed</div>
+                {% else %}
+                <div class="proof-meta">Not available</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="proof-card mb-4">
+        <div class="section-title">Executive Summary</div>
+        <p class="response-text mb-0">{{ report.executive_summary }}</p>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="proof-card h-100">
+                <div class="section-title">Threat Analysis</div>
+                <p class="response-text mb-0">{{ report.threat_analysis }}</p>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="proof-card h-100">
+                <div class="section-title">Business / Personal Impact</div>
+                <p class="response-text mb-0">{{ report.business_impact }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="proof-card mb-4">
+        <div class="section-title"><i class="fas fa-user-secret me-1"></i>Realistic Attack Scenario</div>
+        <p class="response-text mb-0">{{ report.attack_scenario }}</p>
+    </div>
+
+    {% if report.evidence_map %}
+    <div class="proof-card mb-4">
+        <div class="section-title"><i class="fas fa-diagram-project me-1"></i>Explainable AI: Exposure &rarr; Risk &rarr; Action</div>
+        <div class="evidence-chain">
+            {% for item in report.evidence_map %}
+            <div class="evidence-row">
+                <div class="evidence-node evidence-exposure"><i class="fas fa-triangle-exclamation me-1"></i>{{ item.exposure }}</div>
+                <div class="evidence-arrow">&rarr;</div>
+                <div class="evidence-node evidence-risk">{{ item.risk }}</div>
+                <div class="evidence-arrow">&rarr;</div>
+                <div class="evidence-node evidence-actions">
+                    {% for action in item.related_actions %}<div>&bull; {{ action }}</div>{% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="mini-card h-100">
+                <strong>Immediate</strong> <span class="priority-badge">{{ report.priority.immediate }}</span>
+                <ul>{% for item in report.mitigation.immediate %}<li>{{ item }}</li>{% endfor %}</ul>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="mini-card h-100">
+                <strong>Short Term</strong> <span class="priority-badge">{{ report.priority.short_term }}</span>
+                <ul>{% for item in report.mitigation.short_term %}<li>{{ item }}</li>{% endfor %}</ul>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="mini-card h-100">
+                <strong>Long Term</strong> <span class="priority-badge">{{ report.priority.long_term }}</span>
+                <ul>{% for item in report.mitigation.long_term %}<li>{{ item }}</li>{% endfor %}</ul>
+            </div>
+        </div>
+    </div>
+
+    {% if report.risk_reduction %}
+    <div class="proof-card mb-4">
+        <div class="section-title"><i class="fas fa-gauge-high me-1"></i>Risk Reduction Score</div>
+        <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+            <div class="score-badge score-before">{{ report.risk_reduction.current_score }}<span>current</span></div>
+            <div class="evidence-arrow">&rarr;</div>
+            <div class="score-badge score-after">{{ report.risk_reduction.estimated_score }}<span>estimated</span></div>
+            <div class="proof-meta">Reduction: <strong>-{{ report.risk_reduction.reduction_points }} points</strong> if all reducible factors are addressed</div>
+        </div>
+        <p class="response-text">{{ report.risk_reduction.narrative }}</p>
+        {% if report.risk_reduction.factors %}
+        <ul class="response-text">
+            {% for factor in report.risk_reduction.factors %}
+            <li>{{ factor.factor }}: -{{ factor.points }} pts &mdash; neutralized by {{ factor.neutralized_by }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="proof-card mb-4">
+        <div class="section-title">Best Practices <span class="priority-badge">{{ report.priority.best_practices }}</span></div>
+        <ul class="response-text mb-0">{% for item in report.best_practices %}<li>{{ item }}</li>{% endfor %}</ul>
+    </div>
+
+    <div class="proof-card mb-4">
+        <div class="section-title">Overall Assessment</div>
+        <p class="response-text mb-0">{{ report.overall_assessment }}</p>
+    </div>
+
+    <details class="proof-card">
+        <summary class="section-title" style="cursor: pointer;">Raw Report JSON</summary>
+        <pre class="code-block">{{ report | tojson(indent=2) }}</pre>
+    </details>
+
+    {% endif %}
+</div>
+
+<style>
+.ai-report-page { color: #c9d1d9; }
+.page-title { color: #f0f6fc; font-weight: 800; }
+.page-subtitle { color: #8b949e; }
+.proof-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 0;
+}
+.proof-label, .section-title, .response-label { color: #58a6ff; font-weight: 700; }
+.proof-meta, .response-text { color: #8b949e; }
+.response-value { color: #f0f6fc; font-size: 1.6rem; font-weight: 800; }
+.response-value.risk-high { color: #f85149; }
+.response-value.risk-medium { color: #d29922; }
+.response-value.risk-low { color: #3fb950; }
+.status-pill { display: inline-flex; padding: 0.25rem 0.7rem; border-radius: 999px; font-weight: 800; font-size: 0.85rem; }
+.status-pill.success { color: #3fb950; background: rgba(63, 185, 80, 0.14); border: 1px solid rgba(63, 185, 80, 0.35); }
+.status-pill.danger { color: #f85149; background: rgba(248, 81, 73, 0.14); border: 1px solid rgba(248, 81, 73, 0.35); }
+.mini-card { height: 100%; background: rgba(255,255,255,0.02); border: 1px solid #30363d; border-radius: 12px; padding: 12px; }
+.mini-card ul { margin: 8px 0 0 18px; color: #c9d1d9; }
+.priority-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 999px; color: #58a6ff; background: rgba(88,166,255,0.14); border: 1px solid rgba(88,166,255,0.35); vertical-align: middle; }
+.code-block { margin: 8px 0 0; padding: 14px; border-radius: 10px; background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.alert-box { border-radius: 12px; border: 1px solid rgba(248, 81, 73, 0.35); background: rgba(248, 81, 73, 0.08); padding: 14px; color: #f85149; }
+.evidence-chain { display: flex; flex-direction: column; gap: 12px; }
+.evidence-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.evidence-node { padding: 8px 12px; border-radius: 8px; font-size: 0.9rem; }
+.evidence-exposure { background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.3); color: #f85149; font-weight: 700; }
+.evidence-risk { background: rgba(210, 153, 34, 0.1); border: 1px solid rgba(210, 153, 34, 0.3); color: #d29922; flex: 1; min-width: 200px; }
+.evidence-actions { background: rgba(63, 185, 80, 0.08); border: 1px solid rgba(63, 185, 80, 0.3); color: #3fb950; flex: 1; min-width: 200px; }
+.evidence-arrow { color: #8b949e; font-size: 1.2rem; }
+.score-badge { display: flex; flex-direction: column; align-items: center; padding: 10px 18px; border-radius: 10px; font-size: 1.6rem; font-weight: 800; }
+.score-badge span { font-size: 0.7rem; font-weight: 500; color: #8b949e; }
+.score-before { background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.3); color: #f85149; }
+.score-after { background: rgba(63, 185, 80, 0.1); border: 1px solid rgba(63, 185, 80, 0.3); color: #3fb950; }
+</style>
+{% endblock %}
