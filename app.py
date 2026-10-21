@@ -289,10 +289,8 @@ def inject_i18n_context() -> Dict[str, Any]:
         "current_user": getattr(g, "user", None),
     }
 
-# Telegram fallback values match the original BotFather setup used by this project.
-# The app will prefer TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID from .env when present.
-ORIGINAL_TELEGRAM_TOKEN = "8784573630:AAGrnWSCglPhDd4WHv_w-eNRNDLop-rDTs4"
-ORIGINAL_TELEGRAM_CHAT_ID = "5917103363"
+# Telegram credentials are read ONLY from environment variables (see .env.example).
+# Never hard-code a bot token or chat ID in source control.
 
 MYSQL_DEFAULTS = {
     "host": "127.0.0.1",
@@ -529,8 +527,8 @@ def get_telegram_config() -> Dict[str, str]:
     chat_id = (os.getenv("TELEGRAM_CHAT_ID") or "").strip()
 
     return {
-        "token": token or ORIGINAL_TELEGRAM_TOKEN,
-        "chat_id": chat_id or ORIGINAL_TELEGRAM_CHAT_ID,
+        "token": token,
+        "chat_id": chat_id,
     }
 
 

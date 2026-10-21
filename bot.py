@@ -36,16 +36,13 @@ def analyzeWithAI(osint_data: dict) -> Optional[dict]:
         breaches=osint_data.get("breaches", []),
     )
 
-# Put your BotFather token in environment variable TELEGRAM_BOT_TOKEN.
-# Keep placeholder in code to avoid exposing secret in thesis repository.
-BOT_TOKEN = os.getenv(
-    "TELEGRAM_BOT_TOKEN",
-    "8784573630:AAGrnWSCglPhDd4WHv_w-eNRNDLop-rDTs4",
-)
+# The BotFather token must come from the TELEGRAM_BOT_TOKEN environment variable (see .env.example).
+# Never commit a real token to the repository.
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # Optional: restrict bot replies to a single Telegram chat/user ID.
-# Example: TELEGRAM_CHAT_ID=5917103363
-ALLOWED_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5917103363")
+# Set TELEGRAM_CHAT_ID in the environment; leaving it empty keeps the bot open to any chat.
+ALLOWED_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 EMAIL_REGEX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 

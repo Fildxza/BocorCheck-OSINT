@@ -19,7 +19,7 @@ $env:MYSQL_PASSWORD = "Admin123!"
 $env:MYSQL_DATABASE = "fyp_osint"
 $env:FLASK_SECRET_KEY = "local-dev-secret"
 $env:PHONE_DEFAULT_REGION = "MY"
-$env:TELEGRAM_CHAT_ID = "5917103363"
+# Set TELEGRAM_CHAT_ID (and TELEGRAM_BOT_TOKEN) in your .env or environment before running.
 $env:ADMIN_USERNAME = "admin"
 $env:ADMIN_PASSWORD = "admin123"
 
